@@ -1,65 +1,82 @@
-import Image from "next/image";
+import Header from "@/components/Header";
+import BannerCarousel from "@/components/BannerCarousel";
+import FlashDeals from "@/components/FlashDeals";
+import Categories from "@/components/Categories";
+import NewProducts from "@/components/NewProducts";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      <main className="container mx-auto px-4 py-4 max-w-7xl">
+        <BannerCarousel />
+        <FlashDeals />
+        <Categories />
+        <NewProducts />
       </main>
+      <footer className="bg-gray-800 text-white py-8 mt-12">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div>
+              <h3 className="text-xl font-bold mb-4">Halora Cosmetic</h3>
+              <p className="text-gray-400">
+                Chuyên cung cấp các sản phẩm mỹ phẩm chính hãng, chất lượng cao.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Về chúng tôi</h4>
+              <ul className="space-y-2 text-gray-400">
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Giới thiệu
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Liên hệ
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Tuyển dụng
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Hỗ trợ</h4>
+              <ul className="space-y-2 text-gray-400">
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Câu hỏi thường gặp
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Chính sách đổi trả
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Hướng dẫn mua hàng
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Liên hệ</h4>
+              <ul className="space-y-2 text-gray-400">
+                <li>Email: support@halora.com</li>
+                <li>Hotline: 1900-xxxx</li>
+                <li>Giờ làm việc: 8:00 - 22:00</li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
+            <p>&copy; 2025 Halora Cosmetic. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
