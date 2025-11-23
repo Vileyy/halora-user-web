@@ -11,6 +11,29 @@ import Image from "next/image";
 export default function FlashDeals() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [timeLeft, setTimeLeft] = useState(4 * 60 * 60); // 4 tiếng = 14400 giây
+
+  // Tính thời gian còn lại dựa trên chu kỳ 4 tiếng
+  const calculateTimeLeft = () => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentSecond = now.getSeconds();
+    
+    // Tính giờ bắt đầu của chu kỳ hiện tại (00:00, 04:00, 08:00, 12:00, 16:00, 20:00)
+    const cycleStartHour = Math.floor(currentHour / 4) * 4;
+    
+    // Tính thời gian đã trôi qua trong chu kỳ hiện tại (tính bằng giây)
+    const elapsedSeconds = 
+      (currentHour - cycleStartHour) * 3600 + 
+      currentMinute * 60 + 
+      currentSecond;
+    
+    // Thời gian còn lại trong chu kỳ hiện tại
+    const remainingSeconds = 4 * 60 * 60 - elapsedSeconds;
+    
+    return remainingSeconds > 0 ? remainingSeconds : 4 * 60 * 60;
+  };
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -27,11 +50,40 @@ export default function FlashDeals() {
     fetchProducts();
   }, []);
 
+  // Khởi tạo thời gian còn lại khi component mount
+  useEffect(() => {
+    setTimeLeft(calculateTimeLeft());
+  }, []);
+
+  // Bộ đếm ngược thời gian - chạy liên tục
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          // Khi hết thời gian, tính lại thời gian còn lại của chu kỳ mới
+          return calculateTimeLeft();
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
       currency: "VND",
     }).format(price);
+  };
+
+  const formatTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   if (isLoading) {
@@ -70,9 +122,14 @@ export default function FlashDeals() {
             </h2>
           </div>
           <div className="flex items-center space-x-3">
-            <span className="text-white text-xs md:text-sm font-medium hidden sm:block">
-              ĐÃ KẾT THÚC
-            </span>
+            <div className="flex items-center space-x-2 bg-white/20 px-3 py-1.5 md:px-4 md:py-2 rounded-lg">
+              <span className="text-white text-xs md:text-sm font-medium">
+                Kết thúc sau:
+              </span>
+              <span className="text-yellow-300 text-sm md:text-base font-bold font-mono">
+                {formatTime(timeLeft)}
+              </span>
+            </div>
             <Link
               href="/products?category=FlashDeals"
               className="bg-white text-pink-600 px-3 py-1.5 md:px-4 md:py-2 rounded-lg 

@@ -1,0 +1,107 @@
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+} from "firebase/auth";
+import { ref, set, get } from "firebase/database";
+import { auth, database } from "@/lib/firebase";
+import { User } from "@/types";
+
+export const authService = {
+  // Đăng ký với email và password
+  async register(
+    email: string,
+    password: string,
+    displayName: string
+  ): Promise<{ user: FirebaseUser; userData: User }> {
+    try {
+      // Tạo user trong Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const firebaseUser = userCredential.user;
+
+      // Tạo user data trong Realtime Database
+      const userData: User = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || email,
+        displayName: displayName,
+        createdAt: Date.now(),
+      };
+
+      // Lưu user data vào database
+      await set(ref(database, `users/${firebaseUser.uid}`), {
+        ...userData,
+        email: firebaseUser.email || email,
+        displayName: displayName,
+        createdAt: Date.now(),
+      });
+
+      return { user: firebaseUser, userData };
+    } catch (error: any) {
+      console.error("Error registering user:", error);
+      throw error;
+    }
+  },
+
+  // Đăng nhập với email và password
+  async login(email: string, password: string): Promise<FirebaseUser> {
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      return userCredential.user;
+    } catch (error: any) {
+      console.error("Error logging in:", error);
+      throw error;
+    }
+  },
+
+  // Đăng xuất
+  async logout(): Promise<void> {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error logging out:", error);
+      throw error;
+    }
+  },
+
+  // Lấy user data từ database
+  async getUserData(uid: string): Promise<User | null> {
+    try {
+      const userRef = ref(database, `users/${uid}`);
+      const snapshot = await get(userRef);
+
+      if (!snapshot.exists()) {
+        return null;
+      }
+
+      const data = snapshot.val();
+      return {
+        uid: data.uid || uid,
+        email: data.email || "",
+        displayName: data.displayName || data.name || "",
+        phoneNumber: data.phoneNumber || data.phone || "",
+        photoURL: data.photoURL || data.avatar || "",
+        address: data.address || "",
+        createdAt: data.createdAt || Date.now(),
+      };
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      return null;
+    }
+  },
+
+  // Lắng nghe thay đổi trạng thái đăng nhập
+  onAuthStateChanged(callback: (user: FirebaseUser | null) => void) {
+    return onAuthStateChanged(auth, callback);
+  },
+};
+

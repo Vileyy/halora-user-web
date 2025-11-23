@@ -3,16 +3,25 @@ import BannerCarousel from "@/components/BannerCarousel";
 import FlashDeals from "@/components/FlashDeals";
 import Categories from "@/components/Categories";
 import NewProducts from "@/components/NewProducts";
+import { ScrollReveal } from "@/components/ScrollReveal";
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       <main className="container mx-auto px-4 py-4 max-w-7xl">
-        <BannerCarousel />
-        <FlashDeals />
-        <Categories />
-        <NewProducts />
+        <ScrollReveal direction="fade" duration={0.8}>
+          <BannerCarousel />
+        </ScrollReveal>
+        <ScrollReveal direction="up" delay={0.2}>
+          <FlashDeals />
+        </ScrollReveal>
+        <ScrollReveal direction="up" delay={0.1}>
+          <Categories />
+        </ScrollReveal>
+        <ScrollReveal direction="up" delay={0.2}>
+          <NewProducts />
+        </ScrollReveal>
       </main>
       <footer className="bg-gray-800 text-white py-8 mt-12">
         <div className="container mx-auto px-4">

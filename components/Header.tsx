@@ -15,6 +15,14 @@ import {
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { setCartOpen } from "@/store/cartSlice";
 import { logout } from "@/store/userSlice";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function Header() {
   const router = useRouter();
@@ -25,7 +33,6 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -49,7 +56,6 @@ export default function Header() {
 
   const handleLogout = () => {
     dispatch(logout());
-    setIsUserMenuOpen(false);
     router.push("/");
   };
 
@@ -63,13 +69,13 @@ export default function Header() {
 
   return (
     <header
-      className={`sticky top-0 z-50 w-full transition-all duration-200 ${
+      className={`sticky top-0 z-40 w-full transition-all duration-200 ${
         isScrolled
           ? "bg-white shadow-sm border-b border-gray-100"
           : "bg-white border-b border-gray-100"
       }`}
     >
-      <div className="container mx-auto px-3 md:px-4">
+      <div className="container mx-auto px-3 md:px-4 relative">
         {/* Main Header - Compact */}
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
@@ -150,72 +156,80 @@ export default function Header() {
             >
               <ShoppingCart className="w-4 h-4" />
               {totalItems > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-pink-600 
-                               text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                <span
+                  className="absolute -top-0.5 -right-0.5 bg-pink-600 
+                               text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center"
+                >
                   {totalItems > 99 ? "99+" : totalItems}
                 </span>
               )}
             </button>
 
             {/* User Menu */}
-            <div className="relative">
-              {isAuthenticated && user ? (
-                <>
-                  <button
-                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="flex items-center justify-center p-1.5 text-gray-600 
-                             hover:text-pink-600 rounded transition-colors"
-                    aria-label="User Menu"
-                  >
-                    <User className="w-4 h-4" />
-                  </button>
-                  {isUserMenuOpen && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      />
-                      <div className="absolute right-0 mt-1.5 w-44 bg-white rounded-md shadow-lg border border-gray-100 py-1 z-50">
-                        <div className="px-3 py-1.5 border-b border-gray-100">
-                          <p className="text-xs font-medium text-gray-900 truncate">{user.name}</p>
-                          <p className="text-[10px] text-gray-500 truncate">{user.email}</p>
-                        </div>
-                        <Link
-                          href="/profile"
-                          className="block px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                          onClick={() => setIsUserMenuOpen(false)}
-                        >
-                          Tài khoản
-                        </Link>
-                        <Link
-                          href="/orders"
-                          className="block px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                          onClick={() => setIsUserMenuOpen(false)}
-                        >
-                          Đơn hàng
-                        </Link>
-                        <button
-                          onClick={handleLogout}
-                          className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 flex items-center space-x-1.5"
-                        >
-                          <LogOut className="w-3 h-3" />
-                          <span>Đăng xuất</span>
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </>
-              ) : (
-                <Link
-                  href="/login"
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
                   className="flex items-center justify-center p-1.5 text-gray-600 
                            hover:text-pink-600 rounded transition-colors"
-                  aria-label="Login"
+                  aria-label="User Menu"
                 >
                   <User className="w-4 h-4" />
-                </Link>
-              )}
-            </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-44 bg-white border border-gray-200 shadow-lg"
+              >
+                {isAuthenticated && user ? (
+                  <>
+                    <DropdownMenuLabel>
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-xs font-medium text-gray-900 truncate">
+                          {user.name}
+                        </p>
+                        <p className="text-[10px] text-gray-500 truncate">
+                          {user.email}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile" className="cursor-pointer">
+                        Tài khoản
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/orders" className="cursor-pointer">
+                        Đơn hàng
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleLogout}
+                      className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+                    >
+                      <LogOut className="w-3 h-3 mr-2" />
+                      Đăng xuất
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => router.push("/login")}
+                      className="cursor-pointer"
+                    >
+                      Đăng nhập
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => router.push("/register")}
+                      className="cursor-pointer"
+                    >
+                      Đăng ký
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* Mobile Menu Toggle */}
             <button

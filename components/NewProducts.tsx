@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Product } from "@/types";
 import { productService } from "@/services/productService";
-import { Star, TrendingUp } from "lucide-react";
+import { Star, TrendingUp, ChevronRight } from "lucide-react";
 import { getOptimizedCloudinaryUrl } from "@/utils/cloudinary";
 import Image from "next/image";
 
@@ -57,15 +57,16 @@ export default function NewProducts() {
 
   if (isLoading) {
     return (
-      <section className="py-12">
+      <section className="py-6 bg-pink-100">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold mb-8">Sản phẩm mới</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-6">
-            {[...Array(4)].map((_, i) => (
+          <div className="bg-gradient-to-r from-pink-600 to-rose-600 rounded-lg p-4 mb-4">
+            <h2 className="text-2xl font-bold text-white">Sản phẩm mới</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            {[...Array(6)].map((_, i) => (
               <div
                 key={i}
-                className="bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 
-                         animate-shimmer rounded-2xl h-80 bg-[length:200%_100%]"
+                className="bg-gray-200 animate-pulse rounded-lg h-64"
               ></div>
             ))}
           </div>
@@ -79,36 +80,24 @@ export default function NewProducts() {
   }
 
   return (
-    <section className="py-6 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 relative overflow-hidden">
-      {/* Decorative Elements */}
-      <div className="absolute top-0 left-0 w-48 h-48 bg-blue-200/20 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 right-0 w-48 h-48 bg-purple-200/20 rounded-full blur-3xl"></div>
-
-      <div className="container mx-auto px-4 relative z-10">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <div className="flex items-center space-x-2 mb-1">
-              <div className="bg-gradient-to-r from-blue-500 to-purple-500 p-1.5 rounded-lg">
-                <TrendingUp className="w-4 h-4 text-white" />
-              </div>
-              <h2
-                className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 
-                           bg-clip-text text-transparent"
-              >
-                Sản phẩm mới
-              </h2>
-            </div>
-            <p className="text-gray-600 text-sm ml-8">
-              Khám phá những sản phẩm mới nhất
-            </p>
+    <section className="py-4 bg-pink-100">
+      <div className="container mx-auto px-4">
+        {/* New Products Header Banner */}
+        <div className="bg-gradient-to-r from-pink-600 to-rose-600 rounded-lg p-3 md:p-4 mb-4 flex items-center justify-between">
+          <div className="flex items-center space-x-2 md:space-x-3">
+            <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-yellow-300 fill-yellow-300" />
+            <h2 className="text-xl md:text-2xl font-bold text-white">
+              Sản phẩm mới
+            </h2>
           </div>
           <Link
             href="/products?category=new_product"
-            className="group flex items-center space-x-1 px-4 py-2 text-sm bg-gradient-to-r 
-                     from-blue-600 to-purple-600 text-white font-medium rounded-full
-                     hover:shadow-md hover:scale-105 transition-all duration-300"
+            className="bg-white text-pink-600 px-3 py-1.5 md:px-4 md:py-2 rounded-lg 
+                     text-xs md:text-sm font-semibold hover:bg-gray-50 transition-colors
+                     flex items-center space-x-1"
           >
             <span>Xem tất cả</span>
+            <ChevronRight className="w-3 h-3 md:w-4 md:h-4" />
           </Link>
         </div>
 
@@ -120,48 +109,45 @@ export default function NewProducts() {
                 key={product.id}
                 className="flex-shrink-0 w-48 md:w-auto md:flex-shrink"
               >
-                <div
-                  className="group relative bg-white rounded-lg shadow-md overflow-hidden 
-                              hover:shadow-lg transition-all duration-300 h-full flex flex-col"
+                <Link
+                  href={`/product/${product.id}`}
+                  className="group bg-white rounded-lg border border-gray-200 overflow-hidden 
+                             hover:shadow-lg transition-all duration-300 block h-full flex flex-col"
                 >
                   {/* Image Container */}
                   <div className="relative aspect-square overflow-hidden bg-gray-50">
-                    <Link href={`/product/${product.id}`}>
-                      <Image
-                        src={getOptimizedCloudinaryUrl(product.image, 300, 300)}
-                        alt={product.name}
-                        fill
-                        sizes="(max-width: 768px) 192px, calc(16.666% - 12px)"
-                        className="object-contain p-2 group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </Link>
+                    <Image
+                      src={getOptimizedCloudinaryUrl(product.image, 300, 300)}
+                      alt={product.name}
+                      fill
+                      sizes="(max-width: 768px) 160px, calc(16.666% - 12px)"
+                      className="object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+                    />
 
                     {/* New Badge */}
                     <div
-                      className="absolute top-2 left-2 bg-gradient-to-r from-green-500 to-emerald-500 
-                                  text-white text-[10px] font-bold px-2 py-1 rounded-full 
-                                  shadow-md"
+                      className="absolute top-2 right-2 bg-gradient-to-r from-pink-600 to-rose-600 
+                                  text-white text-[10px] font-bold px-2 py-0.5 rounded-full 
+                                  shadow-sm flex items-center space-x-0.5"
                     >
-                      MỚI
+                      <TrendingUp className="w-2 h-2 fill-white" />
+                      <span>MỚI</span>
                     </div>
                   </div>
 
                   {/* Product Info */}
-                  <Link
-                    href={`/product/${product.id}`}
-                    className="block p-2 flex-1 flex flex-col"
-                  >
+                  <div className="p-2 flex-1 flex flex-col">
                     <h3
                       className="font-semibold text-xs mb-1 line-clamp-2 text-gray-800 
-                                 group-hover:text-primary-600 transition-colors leading-tight min-h-[32px]"
+                                 group-hover:text-pink-600 transition-colors leading-tight min-h-[32px]"
                     >
                       {product.name}
                     </h3>
 
                     {/* Rating */}
                     {product.reviewSummary && (
-                      <div className="flex items-center space-x-0.5 mb-1.5">
-                        <div className="flex items-center space-x-0">
+                      <div className="flex items-center space-x-0.5 mb-1">
+                        <div className="flex items-center">
                           {[...Array(5)].map((_, i) => (
                             <Star
                               key={i}
@@ -186,7 +172,7 @@ export default function NewProducts() {
                     {/* Price */}
                     <div className="flex items-center space-x-1.5 mb-1.5">
                       {product.minPrice && (
-                        <span className="text-sm font-bold text-primary-600">
+                        <span className="text-sm font-bold text-pink-600">
                           {formatPrice(product.minPrice)}
                         </span>
                       )}
@@ -198,31 +184,27 @@ export default function NewProducts() {
                         )}
                     </div>
 
-                    {/* Stock Info */}
-                    {product.totalStock !== undefined && (
-                      <div className="mt-auto flex items-center space-x-1">
-                        <div
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            product.totalStock > 0
-                              ? "bg-green-500"
-                              : "bg-red-500"
-                          }`}
-                        ></div>
-                        <p
-                          className={`text-[10px] ${
-                            product.totalStock > 0
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {product.totalStock > 0
-                            ? `Còn ${product.totalStock} sản phẩm`
-                            : "Hết hàng"}
-                        </p>
-                      </div>
-                    )}
-                  </Link>
-                </div>
+                    {/* Discount Badge */}
+                    {product.maxPrice &&
+                      product.minPrice &&
+                      product.maxPrice !== product.minPrice && (
+                        <div className="mt-auto">
+                          <span
+                            className="inline-block bg-pink-100 text-pink-700 text-[10px] 
+                                         font-bold px-2 py-0.5 rounded"
+                          >
+                            Giảm{" "}
+                            {Math.round(
+                              ((product.maxPrice - product.minPrice) /
+                                product.maxPrice) *
+                                100
+                            )}
+                            %
+                          </span>
+                        </div>
+                      )}
+                  </div>
+                </Link>
               </div>
             ))}
           </div>
@@ -230,14 +212,14 @@ export default function NewProducts() {
 
         {/* Load More Button */}
         {hasMore && (
-          <div className="flex justify-center mt-6">
+          <div className="flex justify-center mt-4">
             <button
               onClick={handleLoadMore}
               disabled={isLoadingMore}
-              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 
-                       text-white font-medium rounded-full hover:shadow-lg 
-                       hover:scale-105 transition-all duration-300 disabled:opacity-50 
-                       disabled:cursor-not-allowed flex items-center space-x-2"
+              className="px-6 py-2.5 bg-gradient-to-r from-pink-600 to-rose-600 
+                       text-white font-medium rounded-lg hover:from-pink-700 hover:to-rose-700 
+                       transition-all duration-300 disabled:opacity-50 
+                       disabled:cursor-not-allowed flex items-center space-x-2 shadow-lg hover:shadow-xl"
             >
               {isLoadingMore ? (
                 <>
