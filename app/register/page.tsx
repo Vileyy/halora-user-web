@@ -50,7 +50,7 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const { firebaseUser, userData } = await authService.register(
+      const { user, userData } = await authService.register(
         email,
         password,
         name

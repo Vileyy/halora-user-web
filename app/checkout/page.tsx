@@ -385,7 +385,7 @@ export default function CheckoutPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleStripePaymentSuccess = async (_paymentIntentId: string) => {
+  const handleStripePaymentSuccess = async () => {
     // Set flag to prevent redirect
     setIsProcessingStripe(true);
 
