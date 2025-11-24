@@ -43,7 +43,7 @@ const itemVariants = {
     opacity: 1,
     y: 0,
     transition: {
-      type: "spring",
+      type: "spring" as const,
       stiffness: 100,
       damping: 15,
     },
@@ -63,7 +63,7 @@ const iconVariants = {
     scale: 1,
     rotate: 0,
     transition: {
-      type: "spring",
+      type: "spring" as const,
       stiffness: 200,
       damping: 15,
       delay: 0.2,
@@ -84,7 +84,7 @@ const buttonVariants = {
     opacity: 1,
     scale: 1,
     transition: {
-      type: "spring",
+      type: "spring" as const,
       stiffness: 200,
       damping: 15,
     },
@@ -92,7 +92,7 @@ const buttonVariants = {
   hover: {
     scale: 1.02,
     transition: {
-      type: "spring",
+      type: "spring" as const,
       stiffness: 400,
       damping: 10,
     },
@@ -176,7 +176,7 @@ export function LoginRequiredDialog({
                   variants={iconVariants}
                   className="mb-4 relative"
                   whileHover={{ scale: 1.1, rotate: 5 }}
-                  transition={{ type: "spring", stiffness: 300 }}
+                  transition={{ type: "spring" as const, stiffness: 300 }}
                 >
                   <motion.div
                     className="absolute inset-0 bg-white/20 rounded-full blur-xl"
@@ -227,7 +227,7 @@ export function LoginRequiredDialog({
                   scale: 1.02,
                   boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
                 }}
-                transition={{ type: "spring", stiffness: 300 }}
+                transition={{ type: "spring" as const, stiffness: 300 }}
               >
                 <motion.div
                   animate={{ rotate: [0, 10, -10, 0] }}
