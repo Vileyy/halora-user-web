@@ -47,6 +47,7 @@ export interface Banner {
   imageUrl: string;
   linkUrl: string;
   isActive: boolean;
+  description?: string;
   createdAt: number;
   updatedAt: number;
 }
