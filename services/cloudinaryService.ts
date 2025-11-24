@@ -178,11 +178,9 @@ class CloudinaryService {
     try {
       const formData = new FormData();
       
-      if (file instanceof Buffer) {
-        formData.append("file", file as any);
-      } else {
-        formData.append("file", file);
-      }
+      // In Node.js, FormData can accept Buffer, File, or Blob
+      // Use type assertion to handle all cases
+      formData.append("file", file as any);
 
       formData.append("upload_preset", uploadPreset || "my_preset");
       formData.append("folder", folder);
