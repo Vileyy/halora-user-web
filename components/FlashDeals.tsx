@@ -7,6 +7,7 @@ import { productService } from "@/services/productService";
 import { Star, Zap, ChevronRight } from "lucide-react";
 import { getOptimizedCloudinaryUrl } from "@/utils/cloudinary";
 import Image from "next/image";
+import { ScrollReveal } from "@/components/ScrollReveal";
 
 export default function FlashDeals() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -145,7 +146,7 @@ export default function FlashDeals() {
         {/* Product Grid - Scrollable on mobile */}
         <div className="overflow-x-auto pb-2 -mx-4 px-4 md:overflow-x-visible md:mx-0 md:px-0">
           <div className="flex gap-3 min-w-max md:grid md:grid-cols-6 md:min-w-0 md:gap-3">
-            {products.map((product) => {
+            {products.map((product, index) => {
               const discountPercent =
                 product.maxPrice &&
                 product.minPrice &&
@@ -158,8 +159,11 @@ export default function FlashDeals() {
                   : 0;
 
               return (
-                <div
+                <ScrollReveal
                   key={product.id}
+                  direction="up"
+                  delay={index * 0.1}
+                  duration={0.5}
                   className="flex-shrink-0 w-40 md:w-auto md:flex-shrink"
                 >
                   <Link
@@ -252,7 +256,7 @@ export default function FlashDeals() {
                       )}
                     </div>
                   </Link>
-                </div>
+                </ScrollReveal>
               );
             })}
           </div>

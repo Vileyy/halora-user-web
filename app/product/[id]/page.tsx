@@ -22,15 +22,25 @@ import {
 } from "lucide-react";
 import { getOptimizedCloudinaryUrl } from "@/utils/cloudinary";
 import Image from "next/image";
-import { useAppSelector } from "@/store/hooks";
+import { useAppSelector, useAppDispatch } from "@/store/hooks";
+import {
+  addToCart,
+  syncCartToDatabase,
+  setSelectedItems,
+} from "@/store/cartSlice";
+import { CartItem } from "@/types";
+import { toast } from "sonner";
 import { LoginRequiredDialog } from "@/components/LoginRequiredDialog";
+import { motion } from "framer-motion";
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const productId = params.id as string;
 
-  const { isAuthenticated } = useAppSelector((state) => state.user);
+  const { isAuthenticated, user } = useAppSelector((state) => state.user);
+  const { items } = useAppSelector((state) => state.cart);
+  const dispatch = useAppDispatch();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [brand, setBrand] = useState<Brand | null>(null);
@@ -136,7 +146,7 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = async () => {
     // Kiểm tra đăng nhập
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !user) {
       setShowLoginDialog(true);
       return;
     }
@@ -145,21 +155,72 @@ export default function ProductDetailPage() {
 
     const variant = product.variants[selectedVariant];
     if (variant.stockQty < quantity) {
-      alert("Số lượng sản phẩm không đủ!");
+      toast.error("Số lượng sản phẩm không đủ!");
       return;
     }
 
     setIsAddingToCart(true);
-    // TODO: Implement add to cart functionality
-    setTimeout(() => {
+
+    try {
+      // Tạo unique ID cho cart item (kết hợp productId và variant size)
+      const cartItemId = `${product.id}-${variant.size}`;
+
+      const cartItem: CartItem = {
+        id: cartItemId,
+        productId: product.id,
+        userId: user.id,
+        quantity: quantity,
+        product: {
+          ...product,
+          minPrice: variant.price,
+          maxPrice: variant.price,
+        },
+        variantSize: variant.size,
+        addedAt: Date.now(),
+      };
+
+      // Check if item already exists
+      const existingItemIndex = items.findIndex(
+        (item) =>
+          item.productId === cartItem.productId &&
+          item.variantSize === cartItem.variantSize
+      );
+
+      let updatedItems: CartItem[];
+      if (existingItemIndex >= 0) {
+        // Update quantity if item exists
+        updatedItems = items.map((item, index) =>
+          index === existingItemIndex
+            ? { ...item, quantity: item.quantity + cartItem.quantity }
+            : item
+        );
+      } else {
+        // Add new item
+        updatedItems = [...items, cartItem];
+      }
+
+      // Update Redux state
+      dispatch(addToCart(cartItem));
+
+      // Sync to database
+      await dispatch(
+        syncCartToDatabase({ userId: user.id, items: updatedItems })
+      );
+
       setIsAddingToCart(false);
-      alert("Đã thêm vào giỏ hàng!");
-    }, 500);
+      toast.success("Đã thêm vào giỏ hàng thành công!", {
+        description: `${product.name} - ${variant.size}`,
+      });
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      setIsAddingToCart(false);
+      toast.error("Có lỗi xảy ra khi thêm vào giỏ hàng!");
+    }
   };
 
   const handleBuyNow = async () => {
     // Kiểm tra đăng nhập
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !user) {
       setShowLoginDialog(true);
       return;
     }
@@ -168,18 +229,74 @@ export default function ProductDetailPage() {
 
     const variant = product.variants[selectedVariant];
     if (variant.stockQty < quantity) {
-      alert("Số lượng sản phẩm không đủ!");
+      toast.error("Số lượng sản phẩm không đủ!");
       return;
     }
 
-    // TODO: Implement buy now functionality
-    // Thêm vào giỏ và chuyển đến trang checkout
     setIsAddingToCart(true);
-    setTimeout(() => {
+
+    try {
+      // Tạo unique ID cho cart item
+      const cartItemId = `${product.id}-${variant.size}`;
+
+      const cartItem: CartItem = {
+        id: cartItemId,
+        productId: product.id,
+        userId: user.id,
+        quantity: quantity,
+        product: {
+          ...product,
+          minPrice: variant.price,
+          maxPrice: variant.price,
+        },
+        variantSize: variant.size,
+        addedAt: Date.now(),
+      };
+
+      // Check if item already exists
+      const existingItemIndex = items.findIndex(
+        (item) =>
+          item.productId === cartItem.productId &&
+          item.variantSize === cartItem.variantSize
+      );
+
+      let updatedItems: CartItem[];
+      if (existingItemIndex >= 0) {
+        // Update quantity if item exists
+        updatedItems = items.map((item, index) =>
+          index === existingItemIndex
+            ? { ...item, quantity: item.quantity + cartItem.quantity }
+            : item
+        );
+      } else {
+        // Add new item
+        updatedItems = [...items, cartItem];
+      }
+
+      // Update Redux state
+      dispatch(addToCart(cartItem));
+
+      // Select only this item for checkout
+      const itemToSelect =
+        existingItemIndex >= 0
+          ? updatedItems[existingItemIndex].id
+          : cartItemId;
+      dispatch(setSelectedItems([itemToSelect]));
+
+      // Sync to database
+      await dispatch(
+        syncCartToDatabase({ userId: user.id, items: updatedItems })
+      );
+
       setIsAddingToCart(false);
+
       // Navigate to checkout
       router.push("/checkout");
-    }, 500);
+    } catch (error) {
+      console.error("Error in buy now:", error);
+      setIsAddingToCart(false);
+      toast.error("Có lỗi xảy ra!");
+    }
   };
 
   const handleQuantityChange = (delta: number) => {
@@ -268,23 +385,73 @@ export default function ProductDetailPage() {
     return true;
   });
 
+  // Animation variants
+  const imageVariants = {
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: {
+        type: "spring" as const,
+        stiffness: 100,
+        damping: 15,
+        duration: 0.5,
+      },
+    },
+  };
+
+  const reviewItemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: {
+        type: "spring" as const,
+        stiffness: 100,
+        damping: 15,
+        delay: i * 0.05,
+      },
+    }),
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       <main className="container mx-auto px-4 py-4 max-w-6xl">
         {/* Back Button */}
-        <Link
-          href="/"
-          className="inline-flex items-center space-x-2 text-gray-600 hover:text-pink-600 mb-4 transition-colors text-sm"
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Quay lại trang chủ</span>
-        </Link>
+          <Link
+            href="/"
+            className="inline-flex items-center space-x-2 text-gray-600 hover:text-pink-600 mb-4 transition-colors text-sm"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Quay lại trang chủ</span>
+          </Link>
+        </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 bg-white rounded-lg shadow-md p-4 md:p-5">
           {/* Product Image */}
-          <div className="space-y-4">
-            <div className="relative">
+          <motion.div
+            className="space-y-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              type: "spring",
+              stiffness: 100,
+              damping: 15,
+              delay: 0.1,
+            }}
+          >
+            <motion.div
+              className="relative"
+              variants={imageVariants}
+              initial="hidden"
+              animate="visible"
+            >
               <div className="relative aspect-square bg-gray-50 rounded-lg overflow-hidden">
                 <Image
                   src={getOptimizedCloudinaryUrl(product.image, 600, 600)}
@@ -298,15 +465,35 @@ export default function ProductDetailPage() {
 
               {/* Discount Badge */}
               {hasDiscount && (
-                <div className="absolute top-2 left-2 md:top-3 md:left-3 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs md:text-sm font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-full shadow-lg">
+                <motion.div
+                  className="absolute top-2 left-2 md:top-3 md:left-3 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs md:text-sm font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-full shadow-lg"
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{
+                    type: "spring" as const,
+                    stiffness: 200,
+                    damping: 15,
+                    delay: 0.4,
+                  }}
+                >
                   Giảm {discountPercent}%
-                </div>
+                </motion.div>
               )}
-            </div>
+            </motion.div>
 
             {/* Description - Moved to left side */}
             {product.description && (
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <motion.div
+                className="bg-white rounded-lg border border-gray-200 p-4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 100,
+                  damping: 15,
+                  delay: 0.12,
+                }}
+              >
                 <h3 className="text-sm md:text-base font-semibold text-gray-900 mb-3">
                   Mô tả sản phẩm:
                 </h3>
@@ -320,8 +507,6 @@ export default function ProductDetailPage() {
                   </div>
                   {/* Check if description needs expand button */}
                   {(() => {
-                    // Estimate if description is longer than 6 lines
-                    // Average characters per line ~50-60, 6 lines = ~300-360 chars
                     const estimatedLines = Math.ceil(
                       product.description.length / 50
                     );
@@ -348,12 +533,22 @@ export default function ProductDetailPage() {
                     ) : null;
                   })()}
                 </div>
-              </div>
+              </motion.div>
             )}
-          </div>
+          </motion.div>
 
           {/* Product Info */}
-          <div className="space-y-3 md:space-y-4">
+          <motion.div
+            className="space-y-3 md:space-y-4"
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{
+              type: "spring",
+              stiffness: 100,
+              damping: 15,
+              delay: 0.15,
+            }}
+          >
             {/* Brand */}
             {brand && (
               <div className="flex items-center space-x-2">
@@ -438,7 +633,7 @@ export default function ProductDetailPage() {
                   }`}
                 >
                   {product.variants.map((variant, index) => (
-                    <button
+                    <motion.button
                       key={index}
                       onClick={() => {
                         setSelectedVariant(index);
@@ -464,6 +659,22 @@ export default function ProductDetailPage() {
                               color: "#FF9999",
                             }
                           : {}
+                      }
+                      whileHover={
+                        variant.stockQty > 0 && selectedVariant !== index
+                          ? { scale: 1.02, borderColor: "#FF9999" }
+                          : {}
+                      }
+                      whileTap={{ scale: 0.98 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 10,
+                      }}
+                      animate={
+                        selectedVariant === index
+                          ? { scale: 1.02 }
+                          : { scale: 1 }
                       }
                       onMouseEnter={(e) => {
                         if (selectedVariant !== index && variant.stockQty > 0) {
@@ -513,14 +724,23 @@ export default function ProductDetailPage() {
 
                       {/* Checkmark for selected */}
                       {selectedVariant === index && (
-                        <div className="absolute bottom-1 right-1">
+                        <motion.div
+                          className="absolute bottom-1 right-1"
+                          initial={{ scale: 0, rotate: -180 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          transition={{
+                            type: "spring",
+                            stiffness: 200,
+                            damping: 15,
+                          }}
+                        >
                           <Check
                             className="w-4 h-4"
                             style={{ color: "#FF9999" }}
                           />
-                        </div>
+                        </motion.div>
                       )}
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
               </div>
@@ -586,7 +806,7 @@ export default function ProductDetailPage() {
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-2 md:gap-3 pt-2 md:pt-3">
-              <button
+              <motion.button
                 onClick={handleAddToCart}
                 disabled={
                   !currentVariant ||
@@ -598,6 +818,9 @@ export default function ProductDetailPage() {
                   borderColor: "#FF9999",
                   color: "#FF9999",
                 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 400, damping: 10 }}
                 onMouseEnter={(e) => {
                   if (!e.currentTarget.disabled) {
                     e.currentTarget.style.backgroundColor = "#FFF5F5";
@@ -611,8 +834,8 @@ export default function ProductDetailPage() {
                 <span>
                   {isAddingToCart ? "Đang thêm..." : "Thêm vào giỏ hàng"}
                 </span>
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 onClick={handleBuyNow}
                 disabled={
                   !currentVariant ||
@@ -623,6 +846,9 @@ export default function ProductDetailPage() {
                 style={{
                   background: "linear-gradient(to right, #FF9999, #FF6666)",
                 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 400, damping: 10 }}
                 onMouseEnter={(e) => {
                   if (!e.currentTarget.disabled) {
                     e.currentTarget.style.background =
@@ -635,27 +861,45 @@ export default function ProductDetailPage() {
                 }}
               >
                 <span>Mua Ngay</span>
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 onClick={() => setIsFavorite(!isFavorite)}
                 className={`px-4 md:px-6 py-3 md:py-3.5 rounded-lg border-2 transition-all ${
                   isFavorite
                     ? "border-red-500 bg-red-50 text-red-600"
                     : "border-gray-300 hover:border-red-400 text-gray-700"
                 }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 400, damping: 10 }}
               >
-                <Heart
-                  className={`w-4 h-4 md:w-5 md:h-5 ${
-                    isFavorite ? "fill-red-500" : ""
-                  }`}
-                />
-              </button>
+                <motion.div
+                  animate={{ scale: isFavorite ? [1, 1.2, 1] : 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Heart
+                    className={`w-4 h-4 md:w-5 md:h-5 ${
+                      isFavorite ? "fill-red-500" : ""
+                    }`}
+                  />
+                </motion.div>
+              </motion.button>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* Product Details Section */}
-        <div className="mt-6 bg-white rounded-lg shadow-md p-4 md:p-6">
+        <motion.div
+          className="mt-6 bg-white rounded-lg shadow-md p-4 md:p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            type: "spring",
+            stiffness: 100,
+            damping: 15,
+            delay: 0.2,
+          }}
+        >
           <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4">
             CHI TIẾT SẢN PHẨM
           </h2>
@@ -774,10 +1018,20 @@ export default function ProductDetailPage() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Reviews Section */}
-        <div className="mt-6 bg-white rounded-lg shadow-md p-4 md:p-6">
+        <motion.div
+          className="mt-6 bg-white rounded-lg shadow-md p-4 md:p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            type: "spring",
+            stiffness: 100,
+            damping: 15,
+            delay: 0.25,
+          }}
+        >
           <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">
             Đánh giá sản phẩm
           </h2>
@@ -886,10 +1140,14 @@ export default function ProductDetailPage() {
                     </p>
                   </div>
                 ) : (
-                  filteredReviews.map((review) => (
-                    <div
+                  filteredReviews.map((review, index) => (
+                    <motion.div
                       key={review.id}
                       className="border-b border-gray-200 pb-6 last:border-b-0 last:pb-0"
+                      variants={reviewItemVariants}
+                      initial="hidden"
+                      animate="visible"
+                      custom={index}
                     >
                       <div className="flex items-start space-x-3">
                         {/* User Avatar */}
@@ -990,13 +1248,13 @@ export default function ProductDetailPage() {
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   ))
                 )}
               </div>
             </>
           )}
-        </div>
+        </motion.div>
       </main>
       <LoginRequiredDialog
         open={showLoginDialog}

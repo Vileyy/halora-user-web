@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import { authService } from "@/services/authService";
 import { useAppDispatch } from "@/store/hooks";
 import { setUser } from "@/store/userSlice";
+import { loadCartFromDatabase } from "@/store/cartSlice";
 import { ArrowLeft, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
@@ -38,6 +39,8 @@ export default function LoginPage() {
             avatar: userData.photoURL,
           })
         );
+        // Load cart from database
+        dispatch(loadCartFromDatabase(userData.uid));
       }
 
       toast.success("Đăng nhập thành công!", {

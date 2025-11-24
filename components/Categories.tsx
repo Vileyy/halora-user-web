@@ -7,6 +7,7 @@ import { categoryService } from "@/services/categoryService";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { getOptimizedCloudinaryUrl } from "@/utils/cloudinary";
 import Image from "next/image";
+import { ScrollReveal } from "@/components/ScrollReveal";
 
 export default function Categories() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -76,15 +77,21 @@ export default function Categories() {
               const bgColor = pastelColors[index % pastelColors.length];
               
               return (
-                <Link
+                <ScrollReveal
                   key={category.id}
-                  href={`/products?category=${category.id}`}
-                  className="group flex-shrink-0"
+                  direction="up"
+                  delay={index * 0.1}
+                  duration={0.5}
+                  className="flex-shrink-0"
                 >
-                  <div
-                    className={`relative ${bgColor} rounded-xl shadow-sm overflow-hidden 
-                                hover:shadow-md transition-all duration-300 w-32`}
+                  <Link
+                    href={`/products?category=${category.id}`}
+                    className="group block"
                   >
+                    <div
+                      className={`relative ${bgColor} rounded-xl shadow-sm overflow-hidden 
+                                  hover:shadow-md transition-all duration-300 w-32`}
+                    >
                     {/* Image Container */}
                     <div className="relative aspect-square overflow-hidden">
                       <Image
@@ -104,6 +111,7 @@ export default function Categories() {
                     </div>
                   </div>
                 </Link>
+                </ScrollReveal>
               );
             })}
           </div>

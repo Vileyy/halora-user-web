@@ -7,6 +7,7 @@ import { productService } from "@/services/productService";
 import { Star, TrendingUp, ChevronRight } from "lucide-react";
 import { getOptimizedCloudinaryUrl } from "@/utils/cloudinary";
 import Image from "next/image";
+import { ScrollReveal } from "@/components/ScrollReveal";
 
 export default function NewProducts() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -104,9 +105,12 @@ export default function NewProducts() {
         {/* Grid with 6 products per row on desktop, scrollable on mobile */}
         <div className="overflow-x-auto pb-4 -mx-4 px-4 md:overflow-x-visible md:mx-0 md:px-0">
           <div className="flex gap-3 min-w-max md:grid md:grid-cols-6 md:min-w-0 md:gap-3">
-            {displayedProducts.map((product) => (
-              <div
+            {displayedProducts.map((product, index) => (
+              <ScrollReveal
                 key={product.id}
+                direction="up"
+                delay={index * 0.1}
+                duration={0.5}
                 className="flex-shrink-0 w-48 md:w-auto md:flex-shrink"
               >
                 <Link
@@ -203,10 +207,10 @@ export default function NewProducts() {
                           </span>
                         </div>
                       )}
-                  </div>
-                </Link>
-              </div>
-            ))}
+                    </div>
+                  </Link>
+                </ScrollReveal>
+              ))}
           </div>
         </div>
 

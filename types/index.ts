@@ -57,6 +57,7 @@ export interface CartItem {
   userId: string;
   quantity: number;
   product?: Product;
+  variantSize?: string;
   addedAt: number;
 }
 

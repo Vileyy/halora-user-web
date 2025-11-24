@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import { authService } from "@/services/authService";
 import { useAppDispatch } from "@/store/hooks";
 import { setUser } from "@/store/userSlice";
+import { loadCartFromDatabase } from "@/store/cartSlice";
 import { ArrowLeft, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
@@ -63,6 +64,8 @@ export default function RegisterPage() {
           avatar: userData.photoURL,
         })
       );
+      // Load cart from database (will be empty for new users)
+      dispatch(loadCartFromDatabase(userData.uid));
 
       toast.success("Đăng ký thành công!", {
         description: "Chào mừng bạn đến với Halora!",
