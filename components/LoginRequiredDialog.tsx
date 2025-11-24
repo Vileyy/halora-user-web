@@ -108,7 +108,7 @@ const blurCircleVariants = {
     opacity: 1,
     scale: 1,
     transition: {
-      type: "spring",
+      type: "spring" as const,
       stiffness: 50,
       damping: 20,
     },
