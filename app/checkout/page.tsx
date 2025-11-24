@@ -15,6 +15,8 @@ import {
   User,
   Mail,
   ChevronDown,
+  CreditCard,
+  CheckCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -31,6 +33,9 @@ import {
   deselectAllItems,
   syncCartToDatabase,
 } from "@/store/cartSlice";
+import { loadStripe, Stripe } from "@stripe/stripe-js";
+import { Elements } from "@stripe/react-stripe-js";
+import StripePayment from "@/components/StripePayment";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -46,6 +51,13 @@ export default function CheckoutPage() {
   const [selectedItemsData, setSelectedItemsData] = useState<CartItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOrderCompleted, setIsOrderCompleted] = useState(false);
+  const [stripePromise, setStripePromise] =
+    useState<Promise<Stripe | null> | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [isLoadingPaymentIntent, setIsLoadingPaymentIntent] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successOrderId, setSuccessOrderId] = useState<string | null>(null);
+  const [isProcessingStripe, setIsProcessingStripe] = useState(false);
 
   // Address data
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -69,8 +81,123 @@ export default function CheckoutPage() {
   // Form errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Calculate totals (moved up to be available for useEffect)
+  const subtotal = selectedItemsData.reduce((sum, item) => {
+    const price = item.product?.minPrice || 0;
+    return sum + price * item.quantity;
+  }, 0);
+
+  const productDiscount = appliedProductVoucher?.discountAmount || 0;
+  const shippingDiscount = appliedShippingVoucher?.discountAmount || 0;
+  const totalDiscount = productDiscount + shippingDiscount;
+  const shippingFee = 30000;
+  const finalAmount = subtotal - totalDiscount + shippingFee;
+
+  // Initialize Stripe
+  useEffect(() => {
+    const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+    if (publishableKey) {
+      const stripe = loadStripe(publishableKey);
+      setStripePromise(stripe);
+    }
+  }, []);
+
+  // Create payment intent when Stripe payment method is selected
+  useEffect(() => {
+    const createPaymentIntent = async () => {
+      if (
+        formData.paymentMethod !== "stripe" ||
+        !user ||
+        selectedItemsData.length === 0
+      ) {
+        setClientSecret(null);
+        return;
+      }
+
+      setIsLoadingPaymentIntent(true);
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_STRIPE_BACKEND_URL;
+        if (!backendUrl) {
+          toast.error("Cấu hình Stripe chưa đầy đủ!");
+          return;
+        }
+
+        const response = await fetch(backendUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            amount: Math.round(finalAmount), // Amount in smallest currency unit (VND)
+            currency: process.env.NEXT_PUBLIC_STRIPE_CURRENCY || "vnd",
+            metadata: {
+              userId: user.id,
+              email: formData.email || user.email || "",
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(
+            `Failed to create payment intent: ${response.status} - ${errorText}`
+          );
+        }
+
+        const data = await response.json();
+        setClientSecret(data.clientSecret);
+      } catch (error: unknown) {
+        console.error("Error creating payment intent:", error);
+
+        // Check if error is due to network/blocked request
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        const errorName =
+          error instanceof Error
+            ? error.name
+            : (error as { name?: string })?.name || "";
+        const isNetworkError =
+          errorMessage.includes("Failed to fetch") ||
+          errorMessage.includes("ERR_BLOCKED_BY_CLIENT") ||
+          errorMessage.includes("network") ||
+          errorName === "FetchError" ||
+          errorName === "TypeError";
+
+        if (isNetworkError) {
+          toast.error(
+            "Không thể kết nối đến server thanh toán. Vui lòng kiểm tra kết nối internet hoặc tắt Ad Blocker và thử lại.",
+            { duration: 5000 }
+          );
+        } else {
+          toast.error("Không thể khởi tạo thanh toán. Vui lòng thử lại!");
+        }
+        setFormData((prev) => ({ ...prev, paymentMethod: "cod" }));
+      } finally {
+        setIsLoadingPaymentIntent(false);
+      }
+    };
+
+    createPaymentIntent();
+  }, [
+    formData.paymentMethod,
+    formData.email,
+    finalAmount,
+    user,
+    selectedItemsData.length,
+  ]);
+
   // Initial load - only run once when component mounts or when auth state changes
   useEffect(() => {
+    // Don't redirect if we're processing Stripe payment or showing success modal
+    if (
+      isProcessingStripe ||
+      showSuccessModal ||
+      isSubmitting ||
+      isOrderCompleted
+    ) {
+      return;
+    }
+
     if (!isAuthenticated) {
       router.push("/login");
       return;
@@ -100,7 +227,15 @@ export default function CheckoutPage() {
       }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, router, user]);
+  }, [
+    isAuthenticated,
+    router,
+    user,
+    isProcessingStripe,
+    showSuccessModal,
+    isSubmitting,
+    isOrderCompleted,
+  ]);
 
   // Update selectedItemsData when items or selectedItems change (but not if order is completed)
   useEffect(() => {
@@ -205,18 +340,6 @@ export default function CheckoutPage() {
     }).format(price);
   };
 
-  // Calculate totals
-  const subtotal = selectedItemsData.reduce((sum, item) => {
-    const price = item.product?.minPrice || 0;
-    return sum + price * item.quantity;
-  }, 0);
-
-  const productDiscount = appliedProductVoucher?.discountAmount || 0;
-  const shippingDiscount = appliedShippingVoucher?.discountAmount || 0;
-  const totalDiscount = productDiscount + shippingDiscount;
-  const shippingFee = 30000;
-  const finalAmount = subtotal - totalDiscount + shippingFee;
-
   const handleInputChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -262,8 +385,163 @@ export default function CheckoutPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleStripePaymentSuccess = async (_paymentIntentId: string) => {
+    // Set flag to prevent redirect
+    setIsProcessingStripe(true);
+
+    // Payment successful, now create the order
+    if (!user || !isAuthenticated) {
+      toast.error("Vui lòng đăng nhập để đặt hàng!");
+      setIsProcessingStripe(false);
+      return;
+    }
+
+    // Validate form before creating order
+    if (!validateForm()) {
+      toast.error("Vui lòng điền đầy đủ thông tin bắt buộc!");
+      setIsProcessingStripe(false);
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Get province, district, ward names
+      const selectedProvince = provinces.find(
+        (p) => p.code === formData.provinceCode
+      );
+      const selectedDistrict = districts.find(
+        (d) => d.code === formData.districtCode
+      );
+      const selectedWard = wards.find((w) => w.code === formData.wardCode);
+
+      // Create order in database after successful payment
+      const orderId = await orderService.createOrder(
+        user.id,
+        selectedItemsData,
+        {
+          fullName: formData.fullName,
+          phone: formData.phone,
+          email: formData.email,
+          address: formData.address,
+          provinceCode: formData.provinceCode,
+          districtCode: formData.districtCode,
+          wardCode: formData.wardCode,
+          note: formData.note,
+        },
+        {
+          subtotal,
+          productDiscount,
+          shippingDiscount,
+          shippingFee,
+          finalAmount,
+        },
+        "stripe",
+        {
+          product: appliedProductVoucher
+            ? {
+                code: appliedProductVoucher.code,
+                discountAmount: appliedProductVoucher.discountAmount,
+              }
+            : undefined,
+          shipping: appliedShippingVoucher
+            ? {
+                code: appliedShippingVoucher.code,
+                discountAmount: appliedShippingVoucher.discountAmount,
+              }
+            : undefined,
+        },
+        {
+          province: selectedProvince
+            ? {
+                name: selectedProvince.name,
+                code: String(selectedProvince.code),
+              }
+            : undefined,
+          district: selectedDistrict
+            ? {
+                name: selectedDistrict.name,
+                code: String(selectedDistrict.code),
+              }
+            : undefined,
+          ward: selectedWard
+            ? { name: selectedWard.name, code: String(selectedWard.code) }
+            : undefined,
+        }
+      );
+
+      // Remove ordered items from cart
+      selectedItemsData.forEach((item) => {
+        dispatch(removeFromCart(item.id));
+      });
+
+      // Clear selected items
+      dispatch(deselectAllItems());
+
+      // Mark order as completed FIRST to prevent useEffect from running
+      setIsOrderCompleted(true);
+
+      // Sync cart to database after removing items
+      const remainingItems = items.filter(
+        (item) => !selectedItems.includes(item.id)
+      );
+      await dispatch(
+        syncCartToDatabase({ userId: user.id, items: remainingItems })
+      );
+
+      setClientSecret(null);
+      setIsProcessingStripe(false);
+
+      // Show success modal
+      setSuccessOrderId(orderId);
+      setShowSuccessModal(true);
+
+      // Auto close modal and redirect after 1.5 seconds
+      setTimeout(() => {
+        setShowSuccessModal(false);
+        router.push(`/order/${orderId}`);
+      }, 1500);
+    } catch (error) {
+      console.error("Error creating order after payment:", error);
+      toast.error("Có lỗi xảy ra khi tạo đơn hàng!");
+      setIsProcessingStripe(false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleStripePaymentError = (error: string) => {
+    // Check if error is about ad blocker
+    const isAdBlockerError =
+      error.includes("Failed to fetch") ||
+      error.includes("ERR_BLOCKED_BY_CLIENT") ||
+      error.includes("network");
+
+    if (isAdBlockerError) {
+      toast.error(
+        "Không thể kết nối đến Stripe. Vui lòng tắt Ad Blocker hoặc extension chặn quảng cáo và thử lại.",
+        { duration: 6000 }
+      );
+    } else {
+      toast.error(error);
+    }
+    setIsSubmitting(false);
+    setIsProcessingStripe(false);
+  };
+
+  const handleStripePaymentProcessingStart = () => {
+    // Set flag immediately to prevent redirect
+    setIsProcessingStripe(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // If Stripe payment is selected, don't submit form directly
+    // The StripePayment component will handle it
+    if (formData.paymentMethod === "stripe") {
+      return;
+    }
 
     // Validate all required fields
     if (!validateForm()) {
@@ -643,7 +921,13 @@ export default function CheckoutPage() {
                 </h2>
 
                 <div className="space-y-3">
-                  <label className="flex items-center space-x-3 p-4 border-2 border-pink-500 rounded-lg cursor-pointer bg-pink-50">
+                  <label
+                    className={`flex items-center space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                      formData.paymentMethod === "cod"
+                        ? "border-pink-500 bg-pink-50"
+                        : "border-gray-300 hover:border-gray-400"
+                    }`}
+                  >
                     <input
                       type="radio"
                       name="paymentMethod"
@@ -661,7 +945,82 @@ export default function CheckoutPage() {
                       </p>
                     </div>
                   </label>
+
+                  <label
+                    className={`flex items-center space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                      formData.paymentMethod === "stripe"
+                        ? "border-pink-500 bg-pink-50"
+                        : "border-gray-300 hover:border-gray-400"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="stripe"
+                      checked={formData.paymentMethod === "stripe"}
+                      onChange={handleInputChange}
+                      className="w-4 h-4 text-pink-600 focus:ring-pink-500"
+                    />
+                    <div className="flex items-center space-x-2">
+                      <CreditCard className="w-5 h-5 text-gray-600" />
+                      <div>
+                        <span className="font-medium text-gray-900">
+                          Thanh toán bằng thẻ (Stripe)
+                        </span>
+                        <p className="text-sm text-gray-600">
+                          Thanh toán an toàn bằng thẻ tín dụng/ghi nợ
+                        </p>
+                      </div>
+                    </div>
+                  </label>
                 </div>
+
+                {/* Stripe Payment Form */}
+                {formData.paymentMethod === "stripe" && (
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    {isLoadingPaymentIntent ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600"></div>
+                        <span className="ml-3 text-gray-600">
+                          Đang khởi tạo thanh toán...
+                        </span>
+                      </div>
+                    ) : clientSecret && stripePromise ? (
+                      <Elements
+                        stripe={stripePromise}
+                        options={{
+                          clientSecret,
+                          appearance: {
+                            theme: "stripe",
+                            variables: {
+                              colorPrimary: "#ec4899",
+                              colorBackground: "#ffffff",
+                              colorText: "#111827",
+                              colorDanger: "#ef4444",
+                              fontFamily: "system-ui, sans-serif",
+                              spacingUnit: "4px",
+                              borderRadius: "8px",
+                            },
+                          },
+                        }}
+                      >
+                        <StripePayment
+                          amount={finalAmount}
+                          currency={
+                            process.env.NEXT_PUBLIC_STRIPE_CURRENCY || "vnd"
+                          }
+                          onSuccess={handleStripePaymentSuccess}
+                          onError={handleStripePaymentError}
+                          onProcessingStart={handleStripePaymentProcessingStart}
+                        />
+                      </Elements>
+                    ) : (
+                      <div className="text-center py-4 text-gray-500">
+                        Vui lòng điền đầy đủ thông tin giao hàng để tiếp tục
+                      </div>
+                    )}
+                  </div>
+                )}
               </motion.div>
             </div>
 
@@ -755,18 +1114,59 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full mt-6 bg-gradient-to-r from-pink-600 to-rose-600 text-white font-semibold py-3 px-4 rounded-lg hover:from-pink-700 hover:to-rose-700 transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? "Đang xử lý..." : "Đặt hàng"}
-                </button>
+                {formData.paymentMethod !== "stripe" && (
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full mt-6 bg-gradient-to-r from-pink-600 to-rose-600 text-white font-semibold py-3 px-4 rounded-lg hover:from-pink-700 hover:to-rose-700 transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? "Đang xử lý..." : "Đặt hàng"}
+                  </button>
+                )}
               </motion.div>
             </div>
           </div>
         </form>
       </main>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full mx-4"
+          >
+            <div className="text-center">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4"
+              >
+                <CheckCircle className="h-10 w-10 text-green-600" />
+              </motion.div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Đặt hàng thành công!
+              </h2>
+              <p className="text-gray-600 mb-4">
+                Cảm ơn bạn đã đặt hàng. Đơn hàng của bạn đã được xác nhận.
+              </p>
+              {successOrderId && (
+                <p className="text-sm text-gray-500 mb-6">
+                  Mã đơn hàng:{" "}
+                  <span className="font-semibold">{successOrderId}</span>
+                </p>
+              )}
+              <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-pink-600"></div>
+                <span>Đang chuyển đến trang đơn hàng...</span>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
