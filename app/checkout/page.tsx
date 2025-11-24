@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
@@ -58,6 +58,9 @@ export default function CheckoutPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successOrderId, setSuccessOrderId] = useState<string | null>(null);
   const [isProcessingStripe, setIsProcessingStripe] = useState(false);
+  const [countdown, setCountdown] = useState(3);
+  // Use ref to track payment processing without triggering re-renders
+  const isProcessingPaymentRef = useRef(false);
 
   // Address data
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -189,16 +192,34 @@ export default function CheckoutPage() {
   // Initial load - only run once when component mounts or when auth state changes
   useEffect(() => {
     // Don't redirect if we're processing Stripe payment or showing success modal
+    // Also check if Stripe payment method is selected and clientSecret exists
+    const isStripeActive =
+      formData.paymentMethod === "stripe" && clientSecret !== null;
+
+    // Check both state and ref to ensure we don't redirect during payment
     if (
       isProcessingStripe ||
+      isProcessingPaymentRef.current ||
       showSuccessModal ||
       isSubmitting ||
-      isOrderCompleted
+      isOrderCompleted ||
+      isStripeActive ||
+      isLoadingPaymentIntent
     ) {
+      console.log("Skipping auth check - flags:", {
+        isProcessingStripe,
+        isProcessingPaymentRef: isProcessingPaymentRef.current,
+        showSuccessModal,
+        isSubmitting,
+        isOrderCompleted,
+        isStripeActive,
+        isLoadingPaymentIntent,
+      });
       return;
     }
 
     if (!isAuthenticated) {
+      console.log("Not authenticated, redirecting to login");
       router.push("/login");
       return;
     }
@@ -218,23 +239,34 @@ export default function CheckoutPage() {
     setSelectedItemsData(itemsToCheckout);
 
     // Pre-fill form with user data if available
+    // Only set if form is empty (first load) to avoid overwriting user input
     if (user) {
-      setFormData((prev) => ({
-        ...prev,
-        fullName: user.name || "",
-        email: user.email || "",
-        phone: "",
-      }));
+      setFormData((prev) => {
+        // Only update if fields are empty to preserve user input
+        const shouldUpdate = !prev.fullName && !prev.email;
+        if (shouldUpdate) {
+          return {
+            ...prev,
+            fullName: user.name || "",
+            email: user.email || "",
+            // Don't reset phone - keep existing value
+          };
+        }
+        return prev;
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isAuthenticated,
     router,
-    user,
+    user?.id, // Only depend on user.id, not entire user object
     isProcessingStripe,
     showSuccessModal,
     isSubmitting,
     isOrderCompleted,
+    formData.paymentMethod,
+    clientSecret,
+    isLoadingPaymentIntent,
   ]);
 
   // Update selectedItemsData when items or selectedItems change (but not if order is completed)
@@ -355,20 +387,26 @@ export default function CheckoutPage() {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.fullName.trim()) {
+    // Trim and validate each field
+    const trimmedFullName = formData.fullName?.trim() || "";
+    const trimmedPhone = formData.phone?.trim() || "";
+    const trimmedEmail = formData.email?.trim() || "";
+    const trimmedAddress = formData.address?.trim() || "";
+
+    if (!trimmedFullName) {
       newErrors.fullName = "Vui lòng nhập họ và tên!";
     }
-    if (!formData.phone.trim()) {
+    if (!trimmedPhone) {
       newErrors.phone = "Vui lòng nhập số điện thoại!";
-    } else if (!/^[0-9]{10,11}$/.test(formData.phone.replace(/\s/g, ""))) {
+    } else if (!/^[0-9]{10,11}$/.test(trimmedPhone.replace(/\s/g, ""))) {
       newErrors.phone = "Số điện thoại không hợp lệ!";
     }
-    if (!formData.email.trim()) {
+    if (!trimmedEmail) {
       newErrors.email = "Vui lòng nhập email!";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       newErrors.email = "Email không hợp lệ!";
     }
-    if (!formData.address.trim()) {
+    if (!trimmedAddress) {
       newErrors.address = "Vui lòng nhập địa chỉ!";
     }
     if (!formData.provinceCode) {
@@ -392,13 +430,25 @@ export default function CheckoutPage() {
     // Payment successful, now create the order
     if (!user || !isAuthenticated) {
       toast.error("Vui lòng đăng nhập để đặt hàng!");
+      isProcessingPaymentRef.current = false;
       setIsProcessingStripe(false);
       return;
     }
 
-    // Validate form before creating order
-    if (!validateForm()) {
-      toast.error("Vui lòng điền đầy đủ thông tin bắt buộc!");
+    // Form should already be validated before payment started
+    // But do a quick check to ensure data is still valid
+    if (
+      !formData.fullName?.trim() ||
+      !formData.phone?.trim() ||
+      !formData.email?.trim() ||
+      !formData.address?.trim() ||
+      !formData.provinceCode ||
+      !formData.districtCode ||
+      !formData.wardCode
+    ) {
+      console.error("❌ Form data missing after payment success");
+      toast.error("Thông tin đơn hàng không đầy đủ. Vui lòng thử lại.");
+      isProcessingPaymentRef.current = false;
       setIsProcessingStripe(false);
       return;
     }
@@ -490,20 +540,29 @@ export default function CheckoutPage() {
       );
 
       setClientSecret(null);
+      isProcessingPaymentRef.current = false;
       setIsProcessingStripe(false);
 
       // Show success modal
       setSuccessOrderId(orderId);
+      setCountdown(3);
       setShowSuccessModal(true);
 
-      // Auto close modal and redirect after 1.5 seconds
-      setTimeout(() => {
-        setShowSuccessModal(false);
-        router.push(`/order/${orderId}`);
-      }, 1500);
+      // Start countdown: 3, 2, 1 then redirect
+      let currentCountdown = 3;
+      const countdownInterval = setInterval(() => {
+        currentCountdown--;
+        setCountdown(currentCountdown);
+        if (currentCountdown <= 0) {
+          clearInterval(countdownInterval);
+          setShowSuccessModal(false);
+          router.push(`/order/${orderId}`);
+        }
+      }, 1000);
     } catch (error) {
       console.error("Error creating order after payment:", error);
       toast.error("Có lỗi xảy ra khi tạo đơn hàng!");
+      isProcessingPaymentRef.current = false;
       setIsProcessingStripe(false);
     } finally {
       setIsSubmitting(false);
@@ -526,12 +585,23 @@ export default function CheckoutPage() {
       toast.error(error);
     }
     setIsSubmitting(false);
+    isProcessingPaymentRef.current = false;
     setIsProcessingStripe(false);
   };
 
   const handleStripePaymentProcessingStart = () => {
-    // Set flag immediately to prevent redirect
-    setIsProcessingStripe(true);
+    // Set flag immediately to prevent redirect (both state and ref)
+    console.log(
+      "🚨 CRITICAL: Stripe payment processing started - setting flags"
+    );
+    isProcessingPaymentRef.current = true; // Set ref first (synchronous, no re-render)
+    setIsProcessingStripe(true); // Then set state
+    console.log(
+      "✅ Flags set - isProcessingStripe:",
+      true,
+      "ref:",
+      isProcessingPaymentRef.current
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -641,12 +711,25 @@ export default function CheckoutPage() {
         syncCartToDatabase({ userId: user.id, items: remainingItems })
       );
 
-      toast.success("Đặt hàng thành công!");
+      // Keep button in "Đang xử lý..." state for 1.5 seconds before showing success
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Use setTimeout to ensure state is updated before navigation
-      setTimeout(() => {
-        router.push(`/order/${orderId}`);
-      }, 100);
+      // Show success modal (same as Stripe)
+      setSuccessOrderId(orderId);
+      setCountdown(3);
+      setShowSuccessModal(true);
+
+      // Start countdown: 3, 2, 1 then redirect
+      let currentCountdown = 3;
+      const countdownInterval = setInterval(() => {
+        currentCountdown--;
+        setCountdown(currentCountdown);
+        if (currentCountdown <= 0) {
+          clearInterval(countdownInterval);
+          setShowSuccessModal(false);
+          router.push(`/order/${orderId}`);
+        }
+      }, 1000);
     } catch (error) {
       console.error("Error creating order:", error);
       toast.error("Có lỗi xảy ra khi đặt hàng!");
@@ -1012,6 +1095,7 @@ export default function CheckoutPage() {
                           onSuccess={handleStripePaymentSuccess}
                           onError={handleStripePaymentError}
                           onProcessingStart={handleStripePaymentProcessingStart}
+                          onValidateBeforePayment={validateForm}
                         />
                       </Elements>
                     ) : (
@@ -1131,12 +1215,13 @@ export default function CheckoutPage() {
 
       {/* Success Modal */}
       {showSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full mx-4"
+            transition={{ duration: 0.3 }}
+            className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full mx-4 border border-gray-200"
           >
             <div className="text-center">
               <motion.div
@@ -1159,9 +1244,14 @@ export default function CheckoutPage() {
                   <span className="font-semibold">{successOrderId}</span>
                 </p>
               )}
-              <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-pink-600"></div>
-                <span>Đang chuyển đến trang đơn hàng...</span>
+              <div className="flex flex-col items-center justify-center space-y-2">
+                <p className="text-sm text-gray-600">
+                  Đang chuyển đến trang đơn hàng trong
+                </p>
+                <div className="text-4xl font-bold text-pink-600">
+                  {countdown}
+                </div>
+                <p className="text-xs text-gray-500">giây</p>
               </div>
             </div>
           </motion.div>
