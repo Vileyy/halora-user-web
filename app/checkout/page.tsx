@@ -200,8 +200,9 @@ export default function CheckoutPage() {
       try {
         const userData = await authService.getUserData(user.id);
         if (userData) {
-          const shouldUpdate = !formData.fullName && !formData.email && !formData.phone;
-          
+          const shouldUpdate =
+            !formData.fullName && !formData.email && !formData.phone;
+
           if (shouldUpdate) {
             // Set flag to prevent resetting address codes
             isLoadingFromProfileRef.current = true;
@@ -382,13 +383,13 @@ export default function CheckoutPage() {
           );
           setDistricts(districtsData);
           setWards([]);
-          
+
           // Only reset district and ward if they don't match the new province
           // Check if current districtCode is still valid for the new province
           const currentDistrict = districtsData.find(
             (d) => d.code === formData.districtCode
           );
-          
+
           if (!currentDistrict) {
             // Reset district and ward when province changes and district is not valid
             setFormData((prev) => ({
@@ -426,12 +427,12 @@ export default function CheckoutPage() {
             formData.districtCode
           );
           setWards(wardsData);
-          
+
           // Only reset ward if it doesn't match the new district
           const currentWard = wardsData.find(
             (w) => w.code === formData.wardCode
           );
-          
+
           if (!currentWard) {
             // Reset ward when district changes and ward is not valid
             setFormData((prev) => ({
@@ -915,14 +916,19 @@ export default function CheckoutPage() {
                         Email
                       </label>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <div className="absolute left-3 top-0 bottom-0 flex items-center">
+                          <Mail
+                            className="w-5 h-5 text-gray-400"
+                            style={{ marginBottom: "20px" }}
+                          />
+                        </div>
                         <input
                           type="email"
                           name="email"
                           value={formData.email}
                           readOnly
                           disabled
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none"
                           placeholder="Nhập email"
                         />
                         <p className="text-xs text-gray-500 mt-1">

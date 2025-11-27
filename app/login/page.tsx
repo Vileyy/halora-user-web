@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
@@ -11,7 +11,7 @@ import { loadCartFromDatabase } from "@/store/cartSlice";
 import { ArrowLeft, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
@@ -57,16 +57,19 @@ export default function LoginPage() {
       setTimeout(() => {
         router.push(redirectUrl);
       }, 500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login error:", error);
       let errorMessage = "Đăng nhập thất bại. Vui lòng thử lại!";
 
-      if (error.code === "auth/user-not-found") {
-        errorMessage = "Email không tồn tại!";
-      } else if (error.code === "auth/wrong-password") {
-        errorMessage = "Mật khẩu không đúng!";
-      } else if (error.code === "auth/invalid-email") {
-        errorMessage = "Email không hợp lệ!";
+      if (error && typeof error === "object" && "code" in error) {
+        const errorCode = (error as { code: string }).code;
+        if (errorCode === "auth/user-not-found") {
+          errorMessage = "Email không tồn tại!";
+        } else if (errorCode === "auth/wrong-password") {
+          errorMessage = "Mật khẩu không đúng!";
+        } else if (errorCode === "auth/invalid-email") {
+          errorMessage = "Email không hợp lệ!";
+        }
       }
 
       setError(errorMessage);
@@ -106,18 +109,21 @@ export default function LoginPage() {
       setTimeout(() => {
         router.push(redirectUrl);
       }, 500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Google login error:", error);
       let errorMessage = "Đăng nhập bằng Google thất bại. Vui lòng thử lại!";
 
-      if (error.code === "auth/popup-closed-by-user") {
-        errorMessage = "Bạn đã đóng cửa sổ đăng nhập.";
-      } else if (error.code === "auth/popup-blocked") {
-        errorMessage = "Cửa sổ đăng nhập bị chặn. Vui lòng cho phép popup.";
-      } else if (
-        error.code === "auth/account-exists-with-different-credential"
-      ) {
-        errorMessage = "Tài khoản này đã được đăng ký với phương thức khác.";
+      if (error && typeof error === "object" && "code" in error) {
+        const errorCode = (error as { code: string }).code;
+        if (errorCode === "auth/popup-closed-by-user") {
+          errorMessage = "Bạn đã đóng cửa sổ đăng nhập.";
+        } else if (errorCode === "auth/popup-blocked") {
+          errorMessage = "Cửa sổ đăng nhập bị chặn. Vui lòng cho phép popup.";
+        } else if (
+          errorCode === "auth/account-exists-with-different-credential"
+        ) {
+          errorMessage = "Tài khoản này đã được đăng ký với phương thức khác.";
+        }
       }
 
       setError(errorMessage);
@@ -157,20 +163,23 @@ export default function LoginPage() {
       setTimeout(() => {
         router.push(redirectUrl);
       }, 500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Facebook login error:", error);
       let errorMessage = "Đăng nhập bằng Facebook thất bại. Vui lòng thử lại!";
 
-      if (error.code === "auth/popup-closed-by-user") {
-        errorMessage = "Bạn đã đóng cửa sổ đăng nhập.";
-      } else if (error.code === "auth/popup-blocked") {
-        errorMessage = "Cửa sổ đăng nhập bị chặn. Vui lòng cho phép popup.";
-      } else if (
-        error.code === "auth/account-exists-with-different-credential"
-      ) {
-        errorMessage = "Tài khoản này đã được đăng ký với phương thức khác.";
-      } else if (error.code === "auth/facebook-account-disabled") {
-        errorMessage = "Tài khoản Facebook đã bị vô hiệu hóa.";
+      if (error && typeof error === "object" && "code" in error) {
+        const errorCode = (error as { code: string }).code;
+        if (errorCode === "auth/popup-closed-by-user") {
+          errorMessage = "Bạn đã đóng cửa sổ đăng nhập.";
+        } else if (errorCode === "auth/popup-blocked") {
+          errorMessage = "Cửa sổ đăng nhập bị chặn. Vui lòng cho phép popup.";
+        } else if (
+          errorCode === "auth/account-exists-with-different-credential"
+        ) {
+          errorMessage = "Tài khoản này đã được đăng ký với phương thức khác.";
+        } else if (errorCode === "auth/facebook-account-disabled") {
+          errorMessage = "Tài khoản Facebook đã bị vô hiệu hóa.";
+        }
       }
 
       setError(errorMessage);
@@ -379,5 +388,32 @@ export default function LoginPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <main className="container mx-auto px-4 py-8 max-w-md">
+            <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2 mb-6"></div>
+                <div className="space-y-4">
+                  <div className="h-12 bg-gray-200 rounded"></div>
+                  <div className="h-12 bg-gray-200 rounded"></div>
+                  <div className="h-12 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
