@@ -57,7 +57,7 @@ export default function BannerCarousel() {
   if (isLoading) {
     return (
       <div
-        className="w-full aspect-[16/6] bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 
+        className="w-full aspect-[16/5] bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 
                       rounded-lg overflow-hidden relative animate-shimmer 
                       bg-[length:200%_100%]"
       ></div>
@@ -70,7 +70,7 @@ export default function BannerCarousel() {
 
   return (
     <div
-      className="relative w-full aspect-[16/6] overflow-hidden rounded-lg mb-4 group 
+      className="relative w-full aspect-[16/5] overflow-hidden rounded-lg mb-4 group 
                     shadow-lg"
     >
       {banners.map((banner, index) => (

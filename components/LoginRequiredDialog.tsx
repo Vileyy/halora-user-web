@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 interface LoginRequiredDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  redirectUrl?: string;
 }
 
 const containerVariants = {
@@ -118,17 +119,24 @@ const blurCircleVariants = {
 export function LoginRequiredDialog({
   open,
   onOpenChange,
+  redirectUrl,
 }: LoginRequiredDialogProps) {
   const router = useRouter();
 
   const handleLogin = () => {
     onOpenChange(false);
-    router.push("/login");
+    const url = redirectUrl 
+      ? `/login?redirect=${encodeURIComponent(redirectUrl)}`
+      : "/login";
+    router.push(url);
   };
 
   const handleRegister = () => {
     onOpenChange(false);
-    router.push("/register");
+    const url = redirectUrl 
+      ? `/register?redirect=${encodeURIComponent(redirectUrl)}`
+      : "/register";
+    router.push(url);
   };
 
   return (

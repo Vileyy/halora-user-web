@@ -66,7 +66,7 @@ export default function Categories() {
   ];
 
   return (
-    <section className="py-6 bg-gray-50">
+    <section id="categories" className="py-6 bg-gray-50">
       <div className="container mx-auto px-4">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">Danh mục</h2>
         

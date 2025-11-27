@@ -17,6 +17,8 @@ import {
   Clock,
   XCircle,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -65,6 +67,8 @@ export default function OrdersPage() {
   const [activeFilter, setActiveFilter] =
     useState<OrderStatusFilter>("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 6;
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -100,7 +104,15 @@ export default function OrdersPage() {
         orders.filter((order) => order.status === activeFilter)
       );
     }
+    // Reset to page 1 when filter changes
+    setCurrentPage(1);
   }, [activeFilter, orders]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedOrders = filteredOrders.slice(startIndex, endIndex);
 
   // Calculate order counts for each filter
   const getOrderCount = (status: OrderStatusFilter): number => {
@@ -226,8 +238,9 @@ export default function OrdersPage() {
             </Link>
           </motion.div>
         ) : (
-          <div className="space-y-4">
-            {filteredOrders.map((order, index) => {
+          <>
+            <div className="space-y-4">
+              {paginatedOrders.map((order, index) => {
               const StatusIcon = statusConfig[order.status].icon;
               return (
                 <motion.div
@@ -347,8 +360,112 @@ export default function OrdersPage() {
                   </div>
                 </motion.div>
               );
-            })}
-          </div>
+              })}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-center space-x-2">
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Trang trước"
+                >
+                  <ChevronLeft className="w-5 h-5 text-gray-600" />
+                </button>
+
+                <div className="flex items-center space-x-1">
+                  {(() => {
+                    const pages: (number | string)[] = [];
+                    const seenPages = new Set<number>();
+                    
+                    if (totalPages <= 7) {
+                      // Show all pages if 7 or fewer
+                      for (let i = 1; i <= totalPages; i++) {
+                        pages.push(i);
+                      }
+                    } else {
+                      // Always show first page
+                      if (!seenPages.has(1)) {
+                        pages.push(1);
+                        seenPages.add(1);
+                      }
+                      
+                      // Add ellipsis if current page is far from start
+                      if (currentPage > 3) {
+                        pages.push("...");
+                      }
+                      
+                      // Show pages around current page
+                      const start = Math.max(2, currentPage - 1);
+                      const end = Math.min(totalPages - 1, currentPage + 1);
+                      
+                      for (let i = start; i <= end; i++) {
+                        if (!seenPages.has(i)) {
+                          pages.push(i);
+                          seenPages.add(i);
+                        }
+                      }
+                      
+                      // Add ellipsis if current page is far from end
+                      if (currentPage < totalPages - 2) {
+                        pages.push("...");
+                      }
+                      
+                      // Always show last page
+                      if (!seenPages.has(totalPages)) {
+                        pages.push(totalPages);
+                        seenPages.add(totalPages);
+                      }
+                    }
+                    
+                    return pages.map((page, index) => {
+                      if (page === "...") {
+                        return (
+                          <span key={`ellipsis-${index}`} className="px-2 text-gray-500">
+                            ...
+                          </span>
+                        );
+                      }
+                      return (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page as number)}
+                          className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                            currentPage === page
+                              ? "bg-pink-600 text-white"
+                              : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-300"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Trang sau"
+                >
+                  <ChevronRight className="w-5 h-5 text-gray-600" />
+                </button>
+              </div>
+            )}
+
+            {/* Pagination Info */}
+            {filteredOrders.length > 0 && (
+              <div className="mt-4 text-center text-sm text-gray-600">
+                Hiển thị {startIndex + 1} - {Math.min(endIndex, filteredOrders.length)} trong tổng số{" "}
+                {filteredOrders.length} đơn hàng
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>

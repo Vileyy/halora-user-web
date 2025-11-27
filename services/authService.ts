@@ -3,9 +3,14 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  signInWithPopup,
+  GoogleAuthProvider,
+  FacebookAuthProvider,
+  updatePassword,
+  updateProfile,
   User as FirebaseUser,
 } from "firebase/auth";
-import { ref, set, get } from "firebase/database";
+import { ref, set, get, update } from "firebase/database";
 import { auth, database } from "@/lib/firebase";
 import { User } from "@/types";
 
@@ -91,11 +96,143 @@ export const authService = {
         phoneNumber: data.phoneNumber || data.phone || "",
         photoURL: data.photoURL || data.avatar || "",
         address: data.address || "",
+        provinceCode: data.provinceCode || "",
+        districtCode: data.districtCode || "",
+        wardCode: data.wardCode || "",
         createdAt: data.createdAt || Date.now(),
       };
     } catch (error) {
       console.error("Error fetching user data:", error);
       return null;
+    }
+  },
+
+  // Đăng nhập với Google
+  async loginWithGoogle(): Promise<FirebaseUser> {
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const firebaseUser = result.user;
+
+      // Kiểm tra xem user đã có trong database chưa
+      const userRef = ref(database, `users/${firebaseUser.uid}`);
+      const snapshot = await get(userRef);
+
+      // Nếu chưa có, tạo user data mới
+      if (!snapshot.exists()) {
+        const userData: User = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || "",
+          displayName: firebaseUser.displayName || "",
+          phoneNumber: firebaseUser.phoneNumber || "",
+          photoURL: firebaseUser.photoURL || "",
+          createdAt: Date.now(),
+        };
+
+        await set(ref(database, `users/${firebaseUser.uid}`), userData);
+      }
+
+      return firebaseUser;
+    } catch (error: any) {
+      console.error("Error logging in with Google:", error);
+      throw error;
+    }
+  },
+
+  // Đăng nhập với Facebook
+  async loginWithFacebook(): Promise<FirebaseUser> {
+    try {
+      const provider = new FacebookAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const firebaseUser = result.user;
+
+      // Kiểm tra xem user đã có trong database chưa
+      const userRef = ref(database, `users/${firebaseUser.uid}`);
+      const snapshot = await get(userRef);
+
+      // Nếu chưa có, tạo user data mới
+      if (!snapshot.exists()) {
+        const userData: User = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || "",
+          displayName: firebaseUser.displayName || "",
+          phoneNumber: firebaseUser.phoneNumber || "",
+          photoURL: firebaseUser.photoURL || "",
+          createdAt: Date.now(),
+        };
+
+        await set(ref(database, `users/${firebaseUser.uid}`), userData);
+      }
+
+      return firebaseUser;
+    } catch (error: any) {
+      console.error("Error logging in with Facebook:", error);
+      throw error;
+    }
+  },
+
+  // Cập nhật thông tin user
+  async updateUserData(uid: string, data: Partial<User>): Promise<void> {
+    try {
+      const userRef = ref(database, `users/${uid}`);
+      const updates: any = {};
+
+      if (data.displayName !== undefined) {
+        updates.displayName = data.displayName;
+      }
+      if (data.phoneNumber !== undefined) {
+        updates.phoneNumber = data.phoneNumber;
+      }
+      if (data.address !== undefined) {
+        updates.address = data.address;
+      }
+      if (data.provinceCode !== undefined) {
+        updates.provinceCode = data.provinceCode;
+      }
+      if (data.districtCode !== undefined) {
+        updates.districtCode = data.districtCode;
+      }
+      if (data.wardCode !== undefined) {
+        updates.wardCode = data.wardCode;
+      }
+      if (data.photoURL !== undefined) {
+        updates.photoURL = data.photoURL;
+      }
+
+      await update(userRef, updates);
+
+      // Cập nhật Firebase Auth profile nếu có displayName hoặc photoURL
+      const currentUser = auth.currentUser;
+      if (currentUser && currentUser.uid === uid) {
+        const profileUpdates: any = {};
+        if (data.displayName !== undefined) {
+          profileUpdates.displayName = data.displayName;
+        }
+        if (data.photoURL !== undefined) {
+          profileUpdates.photoURL = data.photoURL;
+        }
+        if (Object.keys(profileUpdates).length > 0) {
+          await updateProfile(currentUser, profileUpdates);
+        }
+      }
+    } catch (error) {
+      console.error("Error updating user data:", error);
+      throw error;
+    }
+  },
+
+  // Đổi mật khẩu
+  async changePassword(newPassword: string): Promise<void> {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error("Người dùng chưa đăng nhập");
+      }
+
+      await updatePassword(currentUser, newPassword);
+    } catch (error: any) {
+      console.error("Error changing password:", error);
+      throw error;
     }
   },
 

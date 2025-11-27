@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
 import { authService } from "@/services/authService";
@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
 
   const [name, setName] = useState("");
@@ -23,6 +24,9 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Lấy redirect URL từ query params
+  const redirectUrl = searchParams.get("redirect") || "/";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,12 +77,12 @@ export default function RegisterPage() {
 
       // Delay một chút để toast có thời gian hiển thị
       setTimeout(() => {
-        router.push("/");
+        router.push(redirectUrl);
       }, 500);
     } catch (error: any) {
       console.error("Register error:", error);
       let errorMessage = "Đăng ký thất bại. Vui lòng thử lại!";
-      
+
       if (error.code === "auth/email-already-in-use") {
         errorMessage = "Email này đã được sử dụng!";
       } else if (error.code === "auth/invalid-email") {
@@ -86,7 +90,7 @@ export default function RegisterPage() {
       } else if (error.code === "auth/weak-password") {
         errorMessage = "Mật khẩu quá yếu!";
       }
-      
+
       setError(errorMessage);
       toast.error("Đăng ký thất bại", {
         description: errorMessage,
@@ -260,7 +264,11 @@ export default function RegisterPage() {
             <p className="text-sm text-gray-600">
               Đã có tài khoản?{" "}
               <Link
-                href="/login"
+                href={
+                  redirectUrl !== "/"
+                    ? `/login?redirect=${encodeURIComponent(redirectUrl)}`
+                    : "/login"
+                }
                 className="text-pink-600 hover:text-pink-700 font-medium"
               >
                 Đăng nhập ngay
@@ -272,4 +280,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-

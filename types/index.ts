@@ -101,6 +101,9 @@ export interface User {
   phoneNumber?: string;
   photoURL?: string;
   address?: string;
+  provinceCode?: string;
+  districtCode?: string;
+  wardCode?: string;
   createdAt: number;
 }
 

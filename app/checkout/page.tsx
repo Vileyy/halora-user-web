@@ -27,6 +27,7 @@ import {
   Ward,
 } from "@/services/addressService";
 import { orderService } from "@/services/orderService";
+import { authService } from "@/services/authService";
 import { useAppDispatch } from "@/store/hooks";
 import {
   removeFromCart,
@@ -61,6 +62,8 @@ export default function CheckoutPage() {
   const [countdown, setCountdown] = useState(3);
   // Use ref to track payment processing without triggering re-renders
   const isProcessingPaymentRef = useRef(false);
+  // Use ref to track if we're loading from user profile to avoid resetting address codes
+  const isLoadingFromProfileRef = useRef(false);
 
   // Address data
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -189,6 +192,81 @@ export default function CheckoutPage() {
     selectedItemsData.length,
   ]);
 
+  // Load user profile data to auto-fill form
+  useEffect(() => {
+    if (!user || !isAuthenticated) return;
+
+    const loadUserProfileData = async () => {
+      try {
+        const userData = await authService.getUserData(user.id);
+        if (userData) {
+          const shouldUpdate = !formData.fullName && !formData.email && !formData.phone;
+          
+          if (shouldUpdate) {
+            // Set flag to prevent resetting address codes
+            isLoadingFromProfileRef.current = true;
+
+            // First, set basic info
+            setFormData((prev) => ({
+              ...prev,
+              fullName: userData.displayName || user.name || "",
+              email: userData.email || user.email || "",
+              phone: userData.phoneNumber || "",
+              address: userData.address || "",
+            }));
+
+            // Load districts and wards if user has address codes
+            if (userData.provinceCode) {
+              try {
+                // Load districts first
+                const districtsData = await addressService.getDistricts(
+                  userData.provinceCode
+                );
+                setDistricts(districtsData);
+
+                // Then set provinceCode and districtCode
+                setFormData((prev) => ({
+                  ...prev,
+                  provinceCode: userData.provinceCode || "",
+                  districtCode: userData.districtCode || "",
+                }));
+
+                // If user has districtCode, load wards
+                if (userData.districtCode) {
+                  const wardsData = await addressService.getWards(
+                    userData.districtCode
+                  );
+                  setWards(wardsData);
+
+                  // Finally set wardCode
+                  setFormData((prev) => ({
+                    ...prev,
+                    wardCode: userData.wardCode || "",
+                  }));
+                }
+
+                // Reset flag after a short delay to allow all state updates to complete
+                setTimeout(() => {
+                  isLoadingFromProfileRef.current = false;
+                }, 500);
+              } catch (error) {
+                console.error("Error loading address data:", error);
+                isLoadingFromProfileRef.current = false;
+              }
+            } else {
+              isLoadingFromProfileRef.current = false;
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error loading user profile data:", error);
+        isLoadingFromProfileRef.current = false;
+      }
+    };
+
+    loadUserProfileData();
+  }, [user, isAuthenticated]);
+
   // Initial load - only run once when component mounts or when auth state changes
   useEffect(() => {
     // Don't redirect if we're processing Stripe payment or showing success modal
@@ -237,24 +315,6 @@ export default function CheckoutPage() {
     }
 
     setSelectedItemsData(itemsToCheckout);
-
-    // Pre-fill form with user data if available
-    // Only set if form is empty (first load) to avoid overwriting user input
-    if (user) {
-      setFormData((prev) => {
-        // Only update if fields are empty to preserve user input
-        const shouldUpdate = !prev.fullName && !prev.email;
-        if (shouldUpdate) {
-          return {
-            ...prev,
-            fullName: user.name || "",
-            email: user.email || "",
-            // Don't reset phone - keep existing value
-          };
-        }
-        return prev;
-      });
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isAuthenticated,
@@ -310,6 +370,11 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (formData.provinceCode) {
       const loadDistricts = async () => {
+        // Don't reset if we're loading from profile
+        if (isLoadingFromProfileRef.current) {
+          return;
+        }
+
         setIsLoadingAddress(true);
         try {
           const districtsData = await addressService.getDistricts(
@@ -317,12 +382,21 @@ export default function CheckoutPage() {
           );
           setDistricts(districtsData);
           setWards([]);
-          // Reset district and ward when province changes
-          setFormData((prev) => ({
-            ...prev,
-            districtCode: "",
-            wardCode: "",
-          }));
+          
+          // Only reset district and ward if they don't match the new province
+          // Check if current districtCode is still valid for the new province
+          const currentDistrict = districtsData.find(
+            (d) => d.code === formData.districtCode
+          );
+          
+          if (!currentDistrict) {
+            // Reset district and ward when province changes and district is not valid
+            setFormData((prev) => ({
+              ...prev,
+              districtCode: "",
+              wardCode: "",
+            }));
+          }
         } catch (error) {
           console.error("Error loading districts:", error);
         } finally {
@@ -341,17 +415,30 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (formData.districtCode) {
       const loadWards = async () => {
+        // Don't reset if we're loading from profile
+        if (isLoadingFromProfileRef.current) {
+          return;
+        }
+
         setIsLoadingAddress(true);
         try {
           const wardsData = await addressService.getWards(
             formData.districtCode
           );
           setWards(wardsData);
-          // Reset ward when district changes
-          setFormData((prev) => ({
-            ...prev,
-            wardCode: "",
-          }));
+          
+          // Only reset ward if it doesn't match the new district
+          const currentWard = wardsData.find(
+            (w) => w.code === formData.wardCode
+          );
+          
+          if (!currentWard) {
+            // Reset ward when district changes and ward is not valid
+            setFormData((prev) => ({
+              ...prev,
+              wardCode: "",
+            }));
+          }
         } catch (error) {
           console.error("Error loading wards:", error);
         } finally {
@@ -833,16 +920,14 @@ export default function CheckoutPage() {
                           type="email"
                           name="email"
                           value={formData.email}
-                          onChange={handleInputChange}
-                          required
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-gray-900"
+                          readOnly
+                          disabled
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                           placeholder="Nhập email"
                         />
-                        {errors.email && (
-                          <p className="text-red-500 text-xs mt-1">
-                            {errors.email}
-                          </p>
-                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          Email không thể thay đổi
+                        </p>
                       </div>
                     </div>
                   </div>

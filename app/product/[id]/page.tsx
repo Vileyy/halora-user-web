@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
 import { productService } from "@/services/productService";
@@ -36,6 +36,7 @@ import { motion } from "framer-motion";
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const pathname = usePathname();
   const productId = params.id as string;
 
   const { isAuthenticated, user } = useAppSelector((state) => state.user);
@@ -1259,6 +1260,7 @@ export default function ProductDetailPage() {
       <LoginRequiredDialog
         open={showLoginDialog}
         onOpenChange={setShowLoginDialog}
+        redirectUrl={pathname}
       />
     </div>
   );

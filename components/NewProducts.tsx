@@ -81,7 +81,7 @@ export default function NewProducts() {
   }
 
   return (
-    <section className="py-4 bg-pink-100">
+    <section id="new-products" className="py-4 bg-pink-100">
       <div className="container mx-auto px-4">
         {/* New Products Header Banner */}
         <div className="bg-gradient-to-r from-pink-600 to-rose-600 rounded-lg p-3 md:p-4 mb-4 flex items-center justify-between">

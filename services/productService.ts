@@ -1,6 +1,7 @@
 import { ref, get, query, orderByChild, equalTo, limitToFirst } from "firebase/database";
 import { database } from "@/lib/firebase";
 import { Product } from "@/types";
+import { matchesSearch } from "@/utils/vietnamese";
 
 export const productService = {
   // Get all products
@@ -167,6 +168,48 @@ export const productService = {
     } catch (error) {
       console.error("Error fetching product:", error);
       return null;
+    }
+  },
+
+  // Search products by query (diacritic-insensitive)
+  async searchProducts(query: string, limit: number = 50): Promise<Product[]> {
+    try {
+      if (!query || query.trim().length === 0) {
+        return [];
+      }
+
+      const allProducts = await this.getAllProducts();
+      const searchQuery = query.trim();
+      
+      // Filter products that match the search query
+      const matchedProducts = allProducts.filter((product) => {
+        // Search in product name
+        if (matchesSearch(product.name, searchQuery)) {
+          return true;
+        }
+        // Search in description
+        if (product.description && matchesSearch(product.description, searchQuery)) {
+          return true;
+        }
+        return false;
+      });
+
+      // Sort by relevance (products with name match first)
+      const sortedProducts = matchedProducts.sort((a, b) => {
+        const aNameMatch = matchesSearch(a.name, searchQuery);
+        const bNameMatch = matchesSearch(b.name, searchQuery);
+        
+        if (aNameMatch && !bNameMatch) return -1;
+        if (!aNameMatch && bNameMatch) return 1;
+        
+        // If both match name or both don't, maintain original order
+        return 0;
+      });
+
+      return sortedProducts.slice(0, limit);
+    } catch (error) {
+      console.error("Error searching products:", error);
+      return [];
     }
   },
 };
