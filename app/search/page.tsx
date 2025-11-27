@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
@@ -11,7 +11,7 @@ import { getOptimizedCloudinaryUrl } from "@/utils/cloudinary";
 import Image from "next/image";
 import { motion } from "framer-motion";
 
-export default function SearchPage() {
+function SearchContent() {
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
@@ -44,7 +44,6 @@ export default function SearchPage() {
     }
   };
 
-
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
@@ -61,13 +60,11 @@ export default function SearchPage() {
           <div>
             <div className="mb-4">
               <h2 className="text-xl font-semibold text-gray-900">
-                {isLoading ? (
-                  "Đang tìm kiếm..."
-                ) : products.length > 0 ? (
-                  `Tìm thấy ${products.length} sản phẩm cho "${searchQuery}"`
-                ) : (
-                  `Không tìm thấy sản phẩm nào cho "${searchQuery}"`
-                )}
+                {isLoading
+                  ? "Đang tìm kiếm..."
+                  : products.length > 0
+                  ? `Tìm thấy ${products.length} sản phẩm cho "${searchQuery}"`
+                  : `Không tìm thấy sản phẩm nào cho "${searchQuery}"`}
               </h2>
             </div>
 
@@ -92,7 +89,11 @@ export default function SearchPage() {
                       {/* Image Container */}
                       <div className="relative aspect-square overflow-hidden bg-gray-50">
                         <Image
-                          src={getOptimizedCloudinaryUrl(product.image, 300, 300)}
+                          src={getOptimizedCloudinaryUrl(
+                            product.image,
+                            300,
+                            300
+                          )}
                           alt={product.name}
                           fill
                           sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 16.666vw"
@@ -107,17 +108,18 @@ export default function SearchPage() {
                         </h3>
 
                         {/* Rating */}
-                        {product.reviewSummary && product.reviewSummary.averageRating > 0 && (
-                          <div className="flex items-center space-x-1 mb-2">
-                            <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                            <span className="text-xs text-gray-600">
-                              {product.reviewSummary.averageRating.toFixed(1)}
-                            </span>
-                            <span className="text-xs text-gray-400">
-                              ({product.reviewSummary.totalReviews})
-                            </span>
-                          </div>
-                        )}
+                        {product.reviewSummary &&
+                          product.reviewSummary.averageRating > 0 && (
+                            <div className="flex items-center space-x-1 mb-2">
+                              <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                              <span className="text-xs text-gray-600">
+                                {product.reviewSummary.averageRating.toFixed(1)}
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                ({product.reviewSummary.totalReviews})
+                              </span>
+                            </div>
+                          )}
 
                         {/* Price */}
                         <div className="mt-auto">
@@ -128,7 +130,8 @@ export default function SearchPage() {
                               </p>
                             ) : (
                               <p className="text-base font-bold text-pink-600">
-                                {formatPrice(product.minPrice)} - {formatPrice(product.maxPrice)}
+                                {formatPrice(product.minPrice)} -{" "}
+                                {formatPrice(product.maxPrice)}
                               </p>
                             )
                           ) : (
@@ -171,3 +174,25 @@ export default function SearchPage() {
   );
 }
 
+export default function SearchPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <main className="container mx-auto px-4 py-6 max-w-7xl">
+            <div className="text-center py-12">
+              <div className="animate-pulse">
+                <div className="h-16 w-16 bg-gray-200 rounded-full mx-auto mb-4"></div>
+                <div className="h-6 bg-gray-200 rounded w-1/3 mx-auto mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+              </div>
+            </div>
+          </main>
+        </div>
+      }
+    >
+      <SearchContent />
+    </Suspense>
+  );
+}

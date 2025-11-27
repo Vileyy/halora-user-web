@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
@@ -11,7 +11,7 @@ import { loadCartFromDatabase } from "@/store/cartSlice";
 import { ArrowLeft, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
@@ -54,11 +54,7 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const { user, userData } = await authService.register(
-        email,
-        password,
-        name
-      );
+      const { userData } = await authService.register(email, password, name);
 
       dispatch(
         setUser({
@@ -79,16 +75,19 @@ export default function RegisterPage() {
       setTimeout(() => {
         router.push(redirectUrl);
       }, 500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Register error:", error);
       let errorMessage = "Đăng ký thất bại. Vui lòng thử lại!";
 
-      if (error.code === "auth/email-already-in-use") {
-        errorMessage = "Email này đã được sử dụng!";
-      } else if (error.code === "auth/invalid-email") {
-        errorMessage = "Email không hợp lệ!";
-      } else if (error.code === "auth/weak-password") {
-        errorMessage = "Mật khẩu quá yếu!";
+      if (error && typeof error === "object" && "code" in error) {
+        const errorCode = (error as { code: string }).code;
+        if (errorCode === "auth/email-already-in-use") {
+          errorMessage = "Email này đã được sử dụng!";
+        } else if (errorCode === "auth/invalid-email") {
+          errorMessage = "Email không hợp lệ!";
+        } else if (errorCode === "auth/weak-password") {
+          errorMessage = "Mật khẩu quá yếu!";
+        }
       }
 
       setError(errorMessage);
@@ -278,5 +277,33 @@ export default function RegisterPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <main className="container mx-auto px-4 py-8 max-w-md">
+            <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2 mb-6"></div>
+                <div className="space-y-4">
+                  <div className="h-12 bg-gray-200 rounded"></div>
+                  <div className="h-12 bg-gray-200 rounded"></div>
+                  <div className="h-12 bg-gray-200 rounded"></div>
+                  <div className="h-12 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
   );
 }
