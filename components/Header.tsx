@@ -310,7 +310,7 @@ export default function Header() {
                     key={item.href}
                     onClick={item.onClick}
                     className="px-2.5 py-1.5 text-xs text-gray-600 hover:text-pink-600 font-medium 
-                             transition-colors duration-150"
+                             transition-colors duration-150 cursor-pointer"
                   >
                     {item.label}
                   </button>
@@ -583,7 +583,7 @@ export default function Header() {
                         setIsMobileMenuOpen(false);
                       }}
                       className="px-3 py-1.5 text-sm text-gray-700 hover:text-pink-600 hover:bg-pink-50 
-                               rounded transition-colors text-left"
+                               rounded transition-colors text-left cursor-pointer"
                     >
                       {item.label}
                     </button>
