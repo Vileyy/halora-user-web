@@ -227,4 +227,33 @@ export const orderService = {
       return [];
     }
   },
+
+  async cancelOrder(userId: string, orderId: string): Promise<void> {
+    try {
+      const orderRef = ref(database, `users/${userId}/orders/${orderId}`);
+      const snapshot = await get(orderRef);
+
+      if (!snapshot.exists()) {
+        throw new Error("Đơn hàng không tồn tại");
+      }
+
+      const order = snapshot.val() as OrderData;
+
+      // Only allow cancellation for pending or processing orders
+      if (order.status !== "pending" && order.status !== "processing") {
+        throw new Error("Không thể hủy đơn hàng ở trạng thái này");
+      }
+
+      // Update order status to cancelled
+      const now = new Date().toISOString();
+      await set(orderRef, {
+        ...order,
+        status: "cancelled",
+        updatedAt: now,
+      });
+    } catch (error) {
+      console.error("Error cancelling order:", error);
+      throw error;
+    }
+  },
 };

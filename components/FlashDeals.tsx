@@ -20,19 +20,19 @@ export default function FlashDeals() {
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     const currentSecond = now.getSeconds();
-    
+
     // Tính giờ bắt đầu của chu kỳ hiện tại (00:00, 04:00, 08:00, 12:00, 16:00, 20:00)
     const cycleStartHour = Math.floor(currentHour / 4) * 4;
-    
+
     // Tính thời gian đã trôi qua trong chu kỳ hiện tại (tính bằng giây)
-    const elapsedSeconds = 
-      (currentHour - cycleStartHour) * 3600 + 
-      currentMinute * 60 + 
+    const elapsedSeconds =
+      (currentHour - cycleStartHour) * 3600 +
+      currentMinute * 60 +
       currentSecond;
-    
+
     // Thời gian còn lại trong chu kỳ hiện tại
     const remainingSeconds = 4 * 60 * 60 - elapsedSeconds;
-    
+
     return remainingSeconds > 0 ? remainingSeconds : 4 * 60 * 60;
   };
 
@@ -205,19 +205,26 @@ export default function FlashDeals() {
                       {product.reviewSummary && (
                         <div className="flex items-center space-x-0.5 mb-1">
                           <div className="flex items-center">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`w-2.5 h-2.5 ${
-                                  i <
-                                  Math.floor(
-                                    product.reviewSummary!.averageRating
-                                  )
-                                    ? "fill-yellow-400 text-yellow-400"
-                                    : "fill-gray-200 text-gray-200"
-                                }`}
-                              />
-                            ))}
+                            {[...Array(5)].map((_, i) => {
+                              const rating =
+                                product.reviewSummary!.averageRating;
+                              const fillPercentage =
+                                Math.min(Math.max(rating - i, 0), 1) * 100;
+
+                              return (
+                                <div key={i} className="relative w-2.5 h-2.5">
+                                  {/* Background star (empty) */}
+                                  <Star className="w-2.5 h-2.5 fill-gray-200 text-gray-200 absolute" />
+                                  {/* Foreground star (filled) with clip */}
+                                  <div
+                                    className="overflow-hidden absolute"
+                                    style={{ width: `${fillPercentage}%` }}
+                                  >
+                                    <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                           <span className="text-[10px] font-medium text-gray-700 ml-0.5">
                             {product.reviewSummary.averageRating.toFixed(1)}

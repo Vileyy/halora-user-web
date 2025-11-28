@@ -577,16 +577,25 @@ export default function ProductDetailPage() {
             {product.reviewSummary && (
               <div className="flex items-center space-x-2">
                 <div className="flex items-center space-x-0.5">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-4 h-4 ${
-                        i < Math.floor(product.reviewSummary!.averageRating)
-                          ? "fill-yellow-400 text-yellow-400"
-                          : "fill-gray-200 text-gray-200"
-                      }`}
-                    />
-                  ))}
+                  {[...Array(5)].map((_, i) => {
+                    const rating = product.reviewSummary!.averageRating;
+                    const fillPercentage =
+                      Math.min(Math.max(rating - i, 0), 1) * 100;
+
+                    return (
+                      <div key={i} className="relative w-4 h-4">
+                        {/* Background star (empty) */}
+                        <Star className="w-4 h-4 fill-gray-200 text-gray-200 absolute" />
+                        {/* Foreground star (filled) with clip */}
+                        <div
+                          className="overflow-hidden absolute"
+                          style={{ width: `${fillPercentage}%` }}
+                        >
+                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
                 <span className="text-sm md:text-base font-semibold text-gray-700">
                   {product.reviewSummary.averageRating.toFixed(1)}
@@ -1061,18 +1070,24 @@ export default function ProductDetailPage() {
                     <div className="text-sm text-gray-500">trên 5</div>
                   </div>
                   <div className="flex items-center space-x-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-6 h-6 ${
-                          i < Math.floor(averageRating)
-                            ? "fill-red-500 text-red-500"
-                            : i < averageRating
-                            ? "fill-red-300 text-red-300"
-                            : "fill-gray-200 text-gray-200"
-                        }`}
-                      />
-                    ))}
+                    {[...Array(5)].map((_, i) => {
+                      const fillPercentage =
+                        Math.min(Math.max(averageRating - i, 0), 1) * 100;
+
+                      return (
+                        <div key={i} className="relative w-6 h-6">
+                          {/* Background star (empty) */}
+                          <Star className="w-6 h-6 fill-gray-200 text-gray-200 absolute" />
+                          {/* Foreground star (filled) with clip */}
+                          <div
+                            className="overflow-hidden absolute"
+                            style={{ width: `${fillPercentage}%` }}
+                          >
+                            <Star className="w-6 h-6 fill-yellow-400 text-yellow-400" />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1186,7 +1201,7 @@ export default function ProductDetailPage() {
                                   key={i}
                                   className={`w-4 h-4 ${
                                     i < review.rating
-                                      ? "fill-red-500 text-red-500"
+                                      ? "fill-yellow-400 text-yellow-400"
                                       : "fill-gray-200 text-gray-200"
                                   }`}
                                 />

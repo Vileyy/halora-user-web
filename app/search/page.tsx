@@ -111,7 +111,31 @@ function SearchContent() {
                         {product.reviewSummary &&
                           product.reviewSummary.averageRating > 0 && (
                             <div className="flex items-center space-x-1 mb-2">
-                              <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                              <div className="flex items-center">
+                                {[...Array(5)].map((_, i) => {
+                                  const rating =
+                                    product.reviewSummary!.averageRating;
+                                  const fillPercentage =
+                                    Math.min(Math.max(rating - i, 0), 1) * 100;
+
+                                  return (
+                                    <div
+                                      key={i}
+                                      className="relative w-3.5 h-3.5"
+                                    >
+                                      {/* Background star (empty) */}
+                                      <Star className="w-3.5 h-3.5 fill-gray-200 text-gray-200 absolute" />
+                                      {/* Foreground star (filled) with clip */}
+                                      <div
+                                        className="overflow-hidden absolute"
+                                        style={{ width: `${fillPercentage}%` }}
+                                      >
+                                        <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                               <span className="text-xs text-gray-600">
                                 {product.reviewSummary.averageRating.toFixed(1)}
                               </span>
