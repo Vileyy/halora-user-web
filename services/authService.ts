@@ -47,7 +47,7 @@ export const authService = {
       });
 
       return { user: firebaseUser, userData };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error registering user:", error);
       throw error;
     }
@@ -62,7 +62,7 @@ export const authService = {
         password
       );
       return userCredential.user;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error logging in:", error);
       throw error;
     }
@@ -71,6 +71,10 @@ export const authService = {
   // Đăng xuất
   async logout(): Promise<void> {
     try {
+      // Xóa session từ localStorage
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("halora_user_session");
+      }
       await signOut(auth);
     } catch (error) {
       console.error("Error logging out:", error);
@@ -133,7 +137,7 @@ export const authService = {
       }
 
       return firebaseUser;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error logging in with Google:", error);
       throw error;
     }
@@ -165,7 +169,7 @@ export const authService = {
       }
 
       return firebaseUser;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error logging in with Facebook:", error);
       throw error;
     }
@@ -175,7 +179,7 @@ export const authService = {
   async updateUserData(uid: string, data: Partial<User>): Promise<void> {
     try {
       const userRef = ref(database, `users/${uid}`);
-      const updates: any = {};
+      const updates: Record<string, string | number | undefined> = {};
 
       if (data.displayName !== undefined) {
         updates.displayName = data.displayName;
@@ -204,7 +208,7 @@ export const authService = {
       // Cập nhật Firebase Auth profile nếu có displayName hoặc photoURL
       const currentUser = auth.currentUser;
       if (currentUser && currentUser.uid === uid) {
-        const profileUpdates: any = {};
+        const profileUpdates: { displayName?: string; photoURL?: string } = {};
         if (data.displayName !== undefined) {
           profileUpdates.displayName = data.displayName;
         }
@@ -230,7 +234,7 @@ export const authService = {
       }
 
       await updatePassword(currentUser, newPassword);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error changing password:", error);
       throw error;
     }
@@ -241,4 +245,3 @@ export const authService = {
     return onAuthStateChanged(auth, callback);
   },
 };
-

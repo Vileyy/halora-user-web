@@ -145,9 +145,16 @@ export default function Header() {
     }
   };
 
-  const handleLogout = () => {
-    dispatch(logout());
-    router.push("/");
+  const handleLogout = async () => {
+    try {
+      // Import authService ở đây nếu chưa có
+      const { authService } = await import("@/services/authService");
+      await authService.logout();
+      dispatch(logout());
+      router.push("/");
+    } catch (error) {
+      console.error("Error during logout:", error);
+    }
   };
 
   const handleProductsClick = (e: React.MouseEvent) => {
