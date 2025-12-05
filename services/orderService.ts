@@ -1,6 +1,7 @@
 import { ref, push, set, get } from "firebase/database";
 import { database } from "@/lib/firebase";
 import { CartItem } from "@/types";
+import { productService } from "./productService";
 
 export interface OrderData {
   id: string;
@@ -173,6 +174,22 @@ export const orderService = {
       orderData.id = orderId;
       await set(newOrderRef, orderData);
 
+      // Decrease product stock after order is created successfully
+      try {
+        const stockItems = cartItems.map((item) => ({
+          productId: item.productId,
+          variantSize:
+            item.variantSize || item.product?.variants[0]?.size || "",
+          quantity: item.quantity,
+        }));
+        await productService.decreaseStock(stockItems);
+        console.log("✅ Stock decreased successfully for order:", orderId);
+      } catch (stockError) {
+        console.error("⚠️ Error decreasing stock:", stockError);
+        // Note: Order is already created, but stock update failed
+        // You might want to implement a rollback or notification system here
+      }
+
       return orderId;
     } catch (error) {
       console.error("Error creating order:", error);
@@ -251,6 +268,22 @@ export const orderService = {
         status: "cancelled",
         updatedAt: now,
       });
+
+      // Restore product stock when order is cancelled
+      try {
+        const stockItems = order.items.map((item) => ({
+          productId: item.productId,
+          variantSize: item.variant?.size || "",
+          quantity: item.quantity,
+        }));
+        await productService.increaseStock(stockItems);
+        console.log(
+          "✅ Stock restored successfully for cancelled order:",
+          orderId
+        );
+      } catch (stockError) {
+        console.error("⚠️ Error restoring stock:", stockError);
+      }
     } catch (error) {
       console.error("Error cancelling order:", error);
       throw error;
