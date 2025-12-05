@@ -223,6 +223,11 @@ export default function OrdersPage() {
     setCurrentPage(1);
   }, [activeFilter, orders]);
 
+  // Scroll to top function
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   // Calculate pagination
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -651,9 +656,10 @@ export default function OrdersPage() {
             {totalPages > 1 && (
               <div className="mt-6 flex items-center justify-center space-x-2">
                 <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(prev - 1, 1))
-                  }
+                  onClick={() => {
+                    setCurrentPage((prev) => Math.max(prev - 1, 1));
+                    scrollToTop();
+                  }}
                   disabled={currentPage === 1}
                   className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   aria-label="Trang trước"
@@ -720,7 +726,10 @@ export default function OrdersPage() {
                       return (
                         <button
                           key={page}
-                          onClick={() => setCurrentPage(page as number)}
+                          onClick={() => {
+                            setCurrentPage(page as number);
+                            scrollToTop();
+                          }}
                           className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
                             currentPage === page
                               ? "bg-pink-600 text-white"
@@ -735,9 +744,10 @@ export default function OrdersPage() {
                 </div>
 
                 <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
+                  onClick={() => {
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+                    scrollToTop();
+                  }}
                   disabled={currentPage === totalPages}
                   className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   aria-label="Trang sau"
