@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { Product } from "@/types";
 import { productService } from "@/services/productService";
-import { Star, Zap, ChevronRight } from "lucide-react";
+import { Star, Zap, ChevronRight, ChevronLeft } from "lucide-react";
 import { getOptimizedCloudinaryUrl } from "@/utils/cloudinary";
 import Image from "next/image";
 import { ScrollReveal } from "@/components/ScrollReveal";
@@ -13,6 +13,9 @@ export default function FlashDeals() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(4 * 60 * 60); // 4 tiếng = 14400 giây
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Tính thời gian còn lại dựa trên chu kỳ 4 tiếng
   const calculateTimeLeft = () => {
@@ -71,6 +74,29 @@ export default function FlashDeals() {
     return () => clearInterval(timer);
   }, []);
 
+  // Check scroll position to show/hide arrows
+  const checkScrollPosition = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } =
+        scrollContainerRef.current;
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  // Scroll functions
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -300, behavior: "smooth" });
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: 300, behavior: "smooth" });
+    }
+  };
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
@@ -94,13 +120,15 @@ export default function FlashDeals() {
           <div className="bg-gradient-to-r from-pink-600 to-rose-600 rounded-lg p-4 mb-4">
             <h2 className="text-2xl font-bold text-white">Flash Deals</h2>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-            {[...Array(6)].map((_, i) => (
-              <div
-                key={i}
-                className="bg-gray-200 animate-pulse rounded-lg h-64"
-              ></div>
-            ))}
+          <div className="overflow-x-auto pb-2 -mx-4 px-4">
+            <div className="flex gap-3">
+              {[...Array(8)].map((_, i) => (
+                <div
+                  key={i}
+                  className="flex-shrink-0 w-40 md:w-48 bg-gray-200 animate-pulse rounded-lg h-64"
+                ></div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -143,129 +171,167 @@ export default function FlashDeals() {
           </div>
         </div>
 
-        {/* Product Grid - Scrollable on mobile */}
-        <div className="overflow-x-auto pb-2 -mx-4 px-4 md:overflow-x-visible md:mx-0 md:px-0">
-          <div className="flex gap-3 min-w-max md:grid md:grid-cols-6 md:min-w-0 md:gap-3">
-            {products.map((product, index) => {
-              const discountPercent =
-                product.maxPrice &&
-                product.minPrice &&
-                product.maxPrice !== product.minPrice
-                  ? Math.round(
-                      ((product.maxPrice - product.minPrice) /
-                        product.maxPrice) *
-                        100
-                    )
-                  : 0;
+        {/* Product Grid - Always horizontal scroll */}
+        <div className="relative">
+          {/* Left Arrow */}
+          {canScrollLeft && (
+            <button
+              onClick={scrollLeft}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white 
+                       shadow-lg hover:shadow-xl rounded-full p-2 md:p-3 transition-all duration-300
+                       border border-gray-200 hover:border-pink-300 group
+                       -translate-x-2 md:-translate-x-4"
+              aria-label="Scroll left"
+            >
+              <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-gray-600 group-hover:text-pink-600 transition-colors" />
+            </button>
+          )}
 
-              return (
-                <ScrollReveal
-                  key={product.id}
-                  direction="up"
-                  delay={index * 0.1}
-                  duration={0.5}
-                  className="flex-shrink-0 w-40 md:w-auto md:flex-shrink"
-                >
-                  <Link
-                    href={`/product/${product.id}`}
-                    className="group bg-white rounded-lg border border-gray-200 overflow-hidden 
-                             hover:shadow-lg transition-all duration-300 block h-full flex flex-col"
+          {/* Right Arrow */}
+          {canScrollRight && (
+            <button
+              onClick={scrollRight}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white 
+                       shadow-lg hover:shadow-xl rounded-full p-2 md:p-3 transition-all duration-300
+                       border border-gray-200 hover:border-pink-300 group
+                       translate-x-2 md:translate-x-4"
+              aria-label="Scroll right"
+            >
+              <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-gray-600 group-hover:text-pink-600 transition-colors" />
+            </button>
+          )}
+
+          <div
+            ref={scrollContainerRef}
+            onScroll={checkScrollPosition}
+            className="overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-pink-300 scrollbar-track-pink-100 scroll-smooth"
+          >
+            <div className="flex gap-3 px-1">
+              {products.map((product, index) => {
+                const discountPercent =
+                  product.maxPrice &&
+                  product.minPrice &&
+                  product.maxPrice !== product.minPrice
+                    ? Math.round(
+                        ((product.maxPrice - product.minPrice) /
+                          product.maxPrice) *
+                          100
+                      )
+                    : 0;
+
+                return (
+                  <ScrollReveal
+                    key={product.id}
+                    direction="up"
+                    delay={index * 0.1}
+                    duration={0.5}
+                    className="flex-shrink-0 w-40 md:w-48"
                   >
-                    {/* Image Container */}
-                    <div className="relative aspect-square overflow-hidden bg-gray-50">
-                      <Image
-                        src={getOptimizedCloudinaryUrl(product.image, 300, 300)}
-                        alt={product.name}
-                        fill
-                        sizes="(max-width: 768px) 160px, calc(16.666% - 12px)"
-                        className="object-contain p-2 group-hover:scale-105 transition-transform duration-300"
-                      />
+                    <Link
+                      href={`/product/${product.id}`}
+                      className="group bg-white rounded-lg border border-gray-200 overflow-hidden 
+                             hover:shadow-lg transition-all duration-300 block h-full flex flex-col"
+                    >
+                      {/* Image Container */}
+                      <div className="relative aspect-square overflow-hidden bg-gray-50">
+                        <Image
+                          src={getOptimizedCloudinaryUrl(
+                            product.image,
+                            300,
+                            300
+                          )}
+                          alt={product.name}
+                          fill
+                          sizes="(max-width: 768px) 160px, calc(16.666% - 12px)"
+                          className="object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+                        />
 
-                      {/* SALE Badge */}
-                      <div
-                        className="absolute top-2 right-2 bg-gradient-to-r from-pink-600 to-rose-600 
+                        {/* SALE Badge */}
+                        <div
+                          className="absolute top-2 right-2 bg-gradient-to-r from-pink-600 to-rose-600 
                                     text-white text-[10px] font-bold px-2 py-0.5 rounded-full 
                                     shadow-sm flex items-center space-x-0.5"
-                      >
-                        <Zap className="w-2 h-2 fill-white" />
-                        <span>SALE</span>
-                      </div>
-                    </div>
-
-                    {/* Product Info */}
-                    <div className="p-2 flex-1 flex flex-col">
-                      <h3
-                        className="font-semibold text-xs mb-1 line-clamp-2 text-gray-800 
-                                 group-hover:text-pink-600 transition-colors leading-tight min-h-[32px]"
-                      >
-                        {product.name}
-                      </h3>
-
-                      {/* Rating */}
-                      {product.reviewSummary && (
-                        <div className="flex items-center space-x-0.5 mb-1">
-                          <div className="flex items-center">
-                            {[...Array(5)].map((_, i) => {
-                              const rating =
-                                product.reviewSummary!.averageRating;
-                              const fillPercentage =
-                                Math.min(Math.max(rating - i, 0), 1) * 100;
-
-                              return (
-                                <div key={i} className="relative w-2.5 h-2.5">
-                                  {/* Background star (empty) */}
-                                  <Star className="w-2.5 h-2.5 fill-gray-200 text-gray-200 absolute" />
-                                  {/* Foreground star (filled) with clip */}
-                                  <div
-                                    className="overflow-hidden absolute"
-                                    style={{ width: `${fillPercentage}%` }}
-                                  >
-                                    <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          <span className="text-[10px] font-medium text-gray-700 ml-0.5">
-                            {product.reviewSummary.averageRating.toFixed(1)}
-                          </span>
-                          <span className="text-[10px] text-gray-400">
-                            ({product.reviewSummary.totalReviews})
-                          </span>
+                        >
+                          <Zap className="w-2 h-2 fill-white" />
+                          <span>SALE</span>
                         </div>
-                      )}
+                      </div>
 
-                      {/* Price */}
-                      <div className="flex items-center space-x-1.5 mb-1.5">
-                        {product.minPrice && (
-                          <span className="text-sm font-bold text-pink-600">
-                            {formatPrice(product.minPrice)}
-                          </span>
+                      {/* Product Info */}
+                      <div className="p-2 flex-1 flex flex-col">
+                        <h3
+                          className="font-semibold text-xs mb-1 line-clamp-2 text-gray-800 
+                                 group-hover:text-pink-600 transition-colors leading-tight min-h-[32px]"
+                        >
+                          {product.name}
+                        </h3>
+
+                        {/* Rating */}
+                        {product.reviewSummary && (
+                          <div className="flex items-center space-x-0.5 mb-1">
+                            <div className="flex items-center">
+                              {[...Array(5)].map((_, i) => {
+                                const rating =
+                                  product.reviewSummary!.averageRating;
+                                const fillPercentage =
+                                  Math.min(Math.max(rating - i, 0), 1) * 100;
+
+                                return (
+                                  <div key={i} className="relative w-2.5 h-2.5">
+                                    {/* Background star (empty) */}
+                                    <Star className="w-2.5 h-2.5 fill-gray-200 text-gray-200 absolute" />
+                                    {/* Foreground star (filled) with clip */}
+                                    <div
+                                      className="overflow-hidden absolute"
+                                      style={{ width: `${fillPercentage}%` }}
+                                    >
+                                      <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <span className="text-[10px] font-medium text-gray-700 ml-0.5">
+                              {product.reviewSummary.averageRating.toFixed(1)}
+                            </span>
+                            <span className="text-[10px] text-gray-400">
+                              ({product.reviewSummary.totalReviews})
+                            </span>
+                          </div>
                         )}
-                        {product.maxPrice &&
-                          product.maxPrice !== product.minPrice && (
-                            <span className="text-xs text-gray-400 line-through">
-                              {formatPrice(product.maxPrice)}
+
+                        {/* Price */}
+                        <div className="flex items-center space-x-1.5 mb-1.5">
+                          {product.minPrice && (
+                            <span className="text-sm font-bold text-pink-600">
+                              {formatPrice(product.minPrice)}
                             </span>
                           )}
-                      </div>
-
-                      {/* Discount Badge */}
-                      {discountPercent > 0 && (
-                        <div className="mt-auto">
-                          <span
-                            className="inline-block bg-pink-100 text-pink-700 text-[10px] 
-                                         font-bold px-2 py-0.5 rounded"
-                          >
-                            Giảm {discountPercent}%
-                          </span>
+                          {product.maxPrice &&
+                            product.maxPrice !== product.minPrice && (
+                              <span className="text-xs text-gray-400 line-through">
+                                {formatPrice(product.maxPrice)}
+                              </span>
+                            )}
                         </div>
-                      )}
-                    </div>
-                  </Link>
-                </ScrollReveal>
-              );
-            })}
+
+                        {/* Discount Badge */}
+                        {discountPercent > 0 && (
+                          <div className="mt-auto">
+                            <span
+                              className="inline-block bg-pink-100 text-pink-700 text-[10px] 
+                                         font-bold px-2 py-0.5 rounded"
+                            >
+                              Giảm {discountPercent}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  </ScrollReveal>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
